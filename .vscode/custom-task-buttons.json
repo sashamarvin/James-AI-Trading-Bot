@@ -1,0 +1,8 @@
+[
+    {
+      "name": "🚀 Run AI Bot Stack",
+      "color": "green",
+      "command": "workbench.action.tasks.runTask",
+      "args": "Start Full AI Bot Stack"
+    }
+  ]

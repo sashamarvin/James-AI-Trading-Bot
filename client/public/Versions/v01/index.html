@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0"
+    />
+    <title>Lightweight Charts™ Customization Tutorial</title>
+    <!-- Adding the standalone version of Lightweight charts -->
+    <script
+      type="text/javascript"
+      src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"
+    ></script>
+    <style>
+      body {
+        padding: 0;
+        margin: 0;
+      }
+    </style>
+  </head>
+
+  
+
+  <body>
+    <!-- ✅ Header -->
+    <header style="background: #f4f4f4; color: rgb(71, 71, 71); padding: 10px; text-align: center; font-size: 18px;">
+      TradingView Chart UI
+    </header>
+
+    <div style="display: flex; height: calc(100vh - 80px);">
+        
+      <!-- ✅ Left Sidebar -->
+        <aside style="width: 250px; background: #f4f4f4; color: rgb(71, 71, 71); padding: 15px;">
+            <h3>Settings</h3>
+            <p>Options go here...</p>
+            
+            
+            
+        </aside>
+
+        <!-- ✅ Main Chart Container -->
+        <div id="container" style="flex: 1; position: relative;"></div>
+    </div>
+
+    <!-- ✅ Footer -->
+    <footer style="background: #f4f4f4; color: rgb(71, 71, 71); padding: 10px; text-align: center;">
+        Status: Ready
+    </footer>
+    <script type="text/javascript">
+      console.log("DEBUG: Lightweight Charts Version:", LightweightCharts.version);
+  
+      const { createSeriesMarkers } = LightweightCharts;
+  
+      async function fetchStockData() {
+          try {
+              const response = await fetch("alphavantage_CART.csv");
+  
+              if (!response.ok) {
+                  throw new Error(`HTTP error! Status: ${response.status}`);
+              }
+  
+              const data = await response.text();
+              console.log("DEBUG: Raw CSV Data", data.slice(0, 200));
+  
+              const rows = data.split("\n").slice(1);
+              const parsedData = rows.map(row => {
+                  const cols = row.split(",");
+                  if (cols.length < 5) return null;
+  
+                  return {
+                      time: cols[0].trim(),
+                      open: parseFloat(cols[1]),
+                      high: parseFloat(cols[2]),
+                      low: parseFloat(cols[3]),
+                      close: parseFloat(cols[4]),
+                  };
+              }).filter(row => row !== null && !isNaN(row.open));
+  
+              if (parsedData.length === 0) {
+                  throw new Error("Parsed data is empty! Check CSV file.");
+              }
+  
+              console.log("DEBUG: Parsed Stock Data", parsedData.slice(0, 5));
+              return parsedData;
+          } catch (error) {
+              console.error("ERROR: Failed to load stock data!", error);
+              return [];
+          }
+      }
+  
+      const chart = LightweightCharts.createChart(
+          document.getElementById('container')
+      );
+  
+      chart.applyOptions({
+          crosshair: {
+              mode: LightweightCharts.CrosshairMode.Normal,
+              vertLine: {
+                  color: "#808080",
+                  width: 1,
+                  style: LightweightCharts.LineStyle.Dashed,
+                  visible: true,
+              },
+              horzLine: {
+                  color: "#808080",
+                  width: 1,
+                  style: LightweightCharts.LineStyle.Dashed,
+                  visible: true,
+              },
+          },
+      });
+  
+      async function loadRealStockData() {
+          const stockData = await fetchStockData();
+          console.log("DEBUG: Final Stock Data for Chart", stockData.length);
+  
+          if (stockData.length === 0) {
+              console.error("ERROR: No valid stock data found!");
+              return;
+          }
+  
+          const mainSeries = chart.addSeries(LightweightCharts.CandlestickSeries);
+          mainSeries.setData(stockData);
+  
+          console.log("DEBUG: Candlestick Data Loaded ✅");
+  
+          let infoLineMode = false;
+          let infoLinePoints = [];
+          let tempInfoLine = null;
+          let infoLineSeriesList = []; // ✅ Stores drawn Info Lines
+  
+          // ✅ Click Detection for Info Line
+          chart.subscribeClick(param => {
+              if (!param.time) return; // ✅ Ignore empty clicks
+  
+              const bar = param.seriesData.get(mainSeries);
+              if (!bar) return;
+  
+              // ✅ Determine the closest price to snap to
+              const cursorPrice = mainSeries.coordinateToPrice(param.point.y);
+              const snapPrice = findClosestPrice(cursorPrice, bar);
+  
+              console.log(`📌 Snapped Click: ${param.time} @ ${snapPrice}`);
+  
+              // ✅ Always update footer with OHLC data (even in Info Line mode)
+              document.querySelector("footer").innerText = 
+                  `📌 Clicked on: ${param.time} | O: ${bar.open} H: ${bar.high} L: ${bar.low} C: ${bar.close} | Snapped: ${snapPrice}`;
+  
+              // ✅ Handle Info Line Mode (if active)
+              if (infoLineMode) {
+                  if (infoLinePoints.length === 0) {
+                      // ✅ First click: Store point (snap to closest OHLC price)
+                      infoLinePoints.push({ time: param.time, value: snapPrice });
+                  } else {
+                      // ✅ Second click: Draw the Info Line
+                      drawInfoLine(infoLinePoints[0], { time: param.time, value: snapPrice });
+  
+                      // ✅ Reset for next Info Line
+                      infoLinePoints = [];
+                      tempInfoLine = null;
+                      document.querySelector("footer").innerText = "📌 Info Line Cleared";
+                  }
+              }
+          });
+  
+          // ✅ Live Info Line while moving the cursor
+          chart.subscribeCrosshairMove(param => {
+              if (!param.point || !infoLineMode || infoLinePoints.length !== 1) {
+                  if (tempInfoLine) {
+                      chart.removeSeries(tempInfoLine);
+                      tempInfoLine = null;
+                  }
+                  return;
+              }
+  
+              const cursorPrice = mainSeries.coordinateToPrice(param.point.y);
+              const startPoint = infoLinePoints[0];
+  
+              if (!tempInfoLine) {
+                  tempInfoLine = chart.addSeries(LightweightCharts.LineSeries, { 
+                      color: "orange", 
+                      lineWidth: 1, 
+                      lineStyle: LightweightCharts.LineStyle.Dotted 
+                  });
+              }
+  
+              tempInfoLine.setData([
+                  { time: startPoint.time, value: startPoint.value },
+                  { time: param.time, value: cursorPrice }
+              ]);
+  
+              // ✅ Calculate % Change and Show Tooltip
+              const priceDelta = ((cursorPrice - startPoint.value) / startPoint.value) * 100;
+              document.querySelector("footer").innerText = `📌 Info Line: ${priceDelta.toFixed(2)}%`;
+          });
+  
+          // ✅ Function to Draw Final Info Line with % Change
+          function drawInfoLine(start, end) {
+              const infoLineSeries = chart.addSeries(LightweightCharts.LineSeries, { 
+                  color: "orange", 
+                  lineWidth: 2, 
+                  lineStyle: LightweightCharts.LineStyle.Dashed 
+              });
+  
+              infoLineSeries.setData([start, end]);
+              infoLineSeriesList.push(infoLineSeries); // ✅ Store Info Line for deletion
+  
+              // ✅ Calculate % Change
+              const priceDelta = ((end.value - start.value) / start.value) * 100;
+              console.log(`ℹ️ Info Line % Delta: ${priceDelta.toFixed(2)}%`);
+  
+              // ✅ Show Floating Tooltip
+              const tooltip = document.createElement("div");
+              tooltip.innerText = `${priceDelta.toFixed(2)}%`;
+              tooltip.style.position = "absolute";
+              tooltip.style.background = "black";
+              tooltip.style.color = "white";
+              tooltip.style.padding = "4px";
+              tooltip.style.fontSize = "12px";
+              tooltip.style.borderRadius = "3px";
+              tooltip.style.pointerEvents = "none";
+              tooltip.style.left = `${param.point.x + 10}px`;
+              tooltip.style.top = `${param.point.y - 10}px`;
+  
+              document.body.appendChild(tooltip);
+  
+              // ✅ Remove tooltip after 3 seconds
+              setTimeout(() => tooltip.remove(), 3000);
+          }
+  
+          function findClosestPrice(clickPrice, bar) {
+              const prices = [bar.open, bar.high, bar.low, bar.close];
+  
+              console.log(`DEBUG: Click Price: ${clickPrice}`);
+              console.log(`DEBUG: OHLC Prices - O: ${bar.open}, H: ${bar.high}, L: ${bar.low}, C: ${bar.close}`);
+  
+              const closestPrice = prices.reduce((closest, curr) =>
+                  Math.abs(curr - clickPrice) < Math.abs(closest - clickPrice) ? curr : closest
+              );
+  
+              console.log(`DEBUG: Chosen Snap Price: ${closestPrice}`);
+              return closestPrice;
+          }
+  
+          // ✅ Toggle Info Line Mode with Keyboard Shortcuts
+          document.addEventListener("keydown", (event) => {
+              if (event.key === "i" || event.key === "I") {
+                  infoLineMode = true;
+                  infoLinePoints = []; 
+                  console.log("✅ Info Line Mode: ON (Activated by 'I')");
+                  document.querySelector("footer").innerText = "📌 Info Line Mode: ON";
+              } else if (event.key === "Escape") {
+                  infoLineMode = false;
+                  infoLinePoints = [];
+                  tempInfoLine = null;
+                  console.log("❌ Info Line Mode: OFF (Exited by 'ESC')");
+                  document.querySelector("footer").innerText = "📌 Info Line Mode: OFF";
+              }
+          });
+      } // ✅ Correctly closed loadRealStockData()
+  
+      loadRealStockData();
+  
+      window.addEventListener("resize", () => {
+          chart.resize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>

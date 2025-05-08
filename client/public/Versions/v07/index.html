@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0" />
+    <title>Lightweight Charts™ Customization</title>
+    <script type="text/javascript"
+        src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header style="background: #f4f4f4; padding: 10px; text-align: center; font-size: 18px;">
+        TradingView Chart UI
+    </header>
+    <div style="display: flex; height: calc(100vh - 80px);">
+        <aside style="width: 250px; background: #f4f4f4; padding: 15px;">
+            <h3>Stock Selection</h3>
+            
+            <input 
+    type="text" 
+    id="stockInput" 
+    placeholder="e.g., AAPL" 
+    style="width: 80px; padding: 3px; margin-top: 5px;"
+>
+            <h3>Settings</h3>
+            <p>Press <strong>⌘ (Command)</strong> on Mac or <strong>Ctrl</strong> on Windows to toggle Draw Mode.</p>
+            <p>Press <strong>Delete</strong> or <strong>Backspace</strong> to remove the last trendline.</p>
+        </aside>
+        <div id="container" style="flex: 1; position: relative;">
+            <!-- Tooltip -->
+            <div id="tooltip" class="tooltip">📌 Tooltip Active</div>
+        </div>
+    </div>
+    <footer style="background: #f4f4f4; padding: 10px; text-align: center;">
+        Status: Ready
+    </footer>
+
+    <script type="text/javascript">
+
+        const tooltip = document.getElementById("tooltip");
+        console.log("🟢 DEBUG: Tooltip Detected? →", tooltip);
+
+        // FUNCTION: Handle Stock Input Change
+        document.getElementById("stockInput").addEventListener("keydown", function(event) {
+            if (event.key === "Enter") {
+                const newTicker = this.value.trim().toUpperCase();
+                if (newTicker) {
+                    selectedTicker = newTicker; // ✅ Update global variable
+                    loadRealStockData(); // ✅ Reload chart with new stock data
+                    document.querySelector("footer").innerText = `📈 Loaded: ${selectedTicker}`;
+                }
+            }
+        });
+
+
+        async function fetchStockData() {
+            try {
+                const fileName = `alphavantage_${selectedTicker}.csv`; // ✅ Dynamic ticker-based file
+                const response = await fetch(fileName);
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+
+                const data = await response.text();
+                const rows = data.split("\n").slice(1);
+
+                return rows.map(row => {
+                    const cols = row.split(",");
+                    if (cols.length < 5) return null;
+                    return { 
+                        time: cols[0].trim(), 
+                        open: parseFloat(cols[1]), 
+                        high: parseFloat(cols[2]), 
+                        low: parseFloat(cols[3]), 
+                        close: parseFloat(cols[4]), 
+                        volume: parseFloat(cols[5])  // ✅ Ensure volume is included
+                    };
+                }).filter(row => row !== null && !isNaN(row.open));
+
+            } catch (error) {
+                console.error(`❌ ERROR: Failed to load stock data for ${selectedTicker}!`, error);
+                return [];
+            }
+        } // END: fetchStockData
+
+        const chartContainer = document.getElementById('container');
+        const chart = LightweightCharts.createChart(chartContainer);
+
+        chart.applyOptions({
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+                vertLine: { color: "#808080", width: 1, style: LightweightCharts.LineStyle.Dashed, visible: true },
+                horzLine: { color: "#808080", width: 1, style: LightweightCharts.LineStyle.Dashed, visible: true },
+            },
+        }); // END: Chart Initialization
+
+        let selectedTicker = "CART";  // Placeholder, dynamically replace later
+        let drawMode = false;
+        let startPoint = null;
+        let trendlines = [];
+        let dynamicMarkers = [];
+        let mainSeries = null; // Declare globally
+        let ema10SeriesOn = false;      // ✅ Boolean flag for EMA10
+        let volumeSmaSeriesOn = false;  // ✅ Boolean flag for Volume SMA
+
+        // Toggle Draw Mode (⌘ for Mac, Ctrl for Windows)
+        document.addEventListener("keydown", (event) => {
+            if (event.metaKey || event.ctrlKey) {
+                drawMode = !drawMode;
+                document.querySelector("footer").innerText = drawMode ? "✏️ Draw Mode: ON" : "Draw Mode: OFF";
+                chartContainer.classList.toggle("drawing-mode", drawMode);
+                startPoint = null;
+            }
+        }); // END: Toggle Draw Mode
+
+        // Delete last trendline and markers
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Delete" || (event.key === "Backspace" && !event.metaKey && !event.ctrlKey)) {
+                if (trendlines.length > 0) {
+                    const lastLine = trendlines.pop();
+                    chart.removeSeries(lastLine);
+
+                    if (dynamicMarkers.length >= 2) {
+                        dynamicMarkers.pop();
+                        dynamicMarkers.pop();
+                    }
+                }
+
+                if (trendlines.length === 0 && dynamicMarkers.length > 0) {
+                    dynamicMarkers.pop();
+                }
+
+                LightweightCharts.createSeriesMarkers(mainSeries, dynamicMarkers);
+                document.querySelector("footer").innerText =
+                    (trendlines.length === 0 && dynamicMarkers.length === 0)
+                        ? "🗑️ All Trendlines & Markers Deleted"
+                        : "🗑️ Last Item Deleted";
+            }
+        }); // END: Delete Key Handling
+
+
+        const USE_OHLC_BARS = true; // ✅ Change to `true` for OHLC bars
+
+        async function loadRealStockData() {
+
+            if (mainSeries) {
+                chart.removeSeries(mainSeries); // ✅ Remove old chart series before loading new one
+            }
+
+            // ✅ Remove only if they exist and were created before
+            if (ema10SeriesOn) {
+                chart.removeSeries(ema10Series);
+                ema10Series = null;
+                ema10SeriesOn = false;  // ✅ Reset flag
+            }
+
+            if (volumeSmaSeriesOn) {
+                chart.removeSeries(volumeSmaSeries);
+                volumeSmaSeries = null;
+                volumeSmaSeriesOn = false;  // ✅ Reset flag
+            }
+
+           
+
+            const stockData = await fetchStockData();
+            if (stockData.length === 0) return;
+
+
+
+            //mainSeries = chart.addSeries(LightweightCharts.CandlestickSeries); // ✅ Assign globally
+
+            // ✅ Choose Series Type Based on `USE_OHLC_BARS`
+            if (USE_OHLC_BARS) {
+                mainSeries = chart.addSeries(LightweightCharts.BarSeries, {
+                    upColor: '#26a69a',
+                    downColor: '#e74c3c',
+                    thinBars: false, // ✅ Old OHLC Style
+                    openVisible: false, // ✅ Removes Open Thick
+                });
+            } else {
+                mainSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+                    upColor: '#26a69a',
+                    downColor: '#e74c3c',
+                    borderUpColor: '#26a69a',
+                    borderDownColor: '#e74c3c',
+                    wickUpColor: '#26a69a',
+                    wickDownColor: '#e74c3c',
+                });
+            }
+
+            mainSeries.setData(stockData);
+
+            // ─────────────────────────────────────────────
+            // ✅ COMPUTE EMA 10 FUNCTION
+            // ─────────────────────────────────────────────
+            function calculateEMA(data, period) {
+                const k = 2 / (period + 1);
+                let ema = [];
+                let prevEMA = data[0].close; // Start with first close price
+
+                for (let i = 0; i < data.length; i++) {
+                    const currentEMA = (data[i].close * k) + (prevEMA * (1 - k));
+                    ema.push({ time: data[i].time, value: currentEMA });
+                    prevEMA = currentEMA;
+                }
+                return ema;
+            }
+
+            // ─────────────────────────────────────────────
+            // ✅ APPLY EMA 10 TO STOCK DATA
+            // ─────────────────────────────────────────────
+            const ema10Data = calculateEMA(stockData, 10);
+
+            // ─────────────────────────────────────────────
+            // ✅ ADD EMA 10 SERIES TO CHART
+            // ─────────────────────────────────────────────
+            const ema10Series = chart.addSeries(LightweightCharts.LineSeries, {
+                color: 'rgba(52, 152, 219, 0.7)', // ✅ Soft Blue, 70% opacity
+                lineWidth: 1,                   // ✅ Smooth thickness
+                lineStyle: LightweightCharts.LineStyle.Solid,
+            });
+            ma10SeriesOn = true;  // ✅ Set flag after creation
+            ema10Series.setData(ema10Data);
+
+            // END - Ema 10
+
+            // ─────────────────────────────────────────────
+            // ✅ VOLUME SERIES INITIALIZATION
+            // ─────────────────────────────────────────────
+            const volumeSeries = chart.addSeries(LightweightCharts.HistogramSeries, {
+                color: '#26a69a',
+                priceFormat: { type: 'volume' },
+                priceScaleId: 'volume-scale', // ✅ Use a named scale instead of empty string
+            });
+            volumeSmaSeriesOn = true;  // ✅ Set flag after creation
+
+            // ─────────────────────────────────────────────
+            // ✅ EXTRACT & FORMAT VOLUME DATA
+            // ─────────────────────────────────────────────
+            const volumeData = stockData.map((bar) => {
+                if (!bar.volume) {
+                    console.warn("⚠️ No volume found for:", bar);
+                    return null;
+                }
+                return {
+                    time: bar.time,
+                    value: bar.volume,
+                    color: bar.close > bar.open ? 'rgba(100, 149, 237, 0.4)' : 'rgba(135, 206, 250, 0.35)',
+                };
+            }).filter(entry => entry !== null);
+
+            console.log("🟢 DEBUG: Volume Data →", volumeData.slice(0, 5));
+
+            if (volumeData.length === 0) {
+                console.warn("⚠️ No valid volume data to display.");
+                return;
+            }
+
+            volumeSeries.priceScale().applyOptions({
+                scaleMargins: {
+                    top: 0.7,  // ✅ Pushes volume to the lower portion of the chart
+                    bottom: 0,  // ✅ Ensures volume bars start from the bottom
+                },
+            });
+
+            volumeSeries.setData(volumeData);
+            // ─────────────────────────────────────────────
+            // ✅ END OF VOLUME INTEGRATION
+            // ─────────────────────────────────────────────
+
+
+            // VOLUME AVG ---- START
+
+            function calculateVolumeSMA(volumeData, period = 50) {
+                let sma = [];
+                for (let i = 0; i < volumeData.length; i++) {
+                    if (i < period - 1) {
+                        sma.push({ time: volumeData[i].time, value: null }); // Not enough data yet
+                        continue;
+                    }
+                    let sum = 0;
+                    for (let j = 0; j < period; j++) {
+                        sum += volumeData[i - j].value;
+                    }
+                    let avg = sum / period;
+                    sma.push({ time: volumeData[i].time, value: avg });
+                }
+                return sma;
+            }
+
+            const volumeSmaSeries = chart.addSeries(LightweightCharts.LineSeries, {
+                color: 'rgba(255, 179, 71, 0.85)', // Brighter for visibility
+                lineWidth: 1,
+                lineStyle: LightweightCharts.LineStyle.Solid,
+                priceScaleId: 'volume-scale', // ✅ Assign it to the same scale as volume
+            });
+
+            // ✅ Clean volume data to remove invalid entries
+            const cleanVolumeData = volumeData.filter(entry => entry && entry.value);
+
+            // ✅ Calculate the SMA
+            const volumeSMA50 = calculateVolumeSMA(cleanVolumeData, 50);
+
+            // ✅ Apply the SMA to the chart
+            volumeSmaSeries.setData(volumeSMA50);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            chart.subscribeClick(param => {
+                if (!param.time) return;
+
+                const bar = param.seriesData.get(mainSeries);
+                if (!bar) return;
+
+                const cursorPrice = mainSeries.coordinateToPrice(param.point.y);
+                const snapPrice = findClosestPrice(cursorPrice, bar);
+
+                if (drawMode) {
+                    if (!startPoint) {
+                        startPoint = { time: param.time, value: snapPrice };
+
+                        dynamicMarkers.push({
+                            time: startPoint.time,
+                            position: "belowBar",
+                            color: "blue",
+                            shape: "arrowUp",
+                            text: "",
+                        });
+
+                        LightweightCharts.createSeriesMarkers(mainSeries, dynamicMarkers);
+                    } else {
+                        const endPoint = { time: param.time, value: snapPrice };
+
+                        if (startPoint.time === endPoint.time && startPoint.value === endPoint.value) {
+                            return;
+                        }
+
+                        const percentageChange = ((endPoint.value - startPoint.value) / startPoint.value) * 100;
+                        const formattedChange = percentageChange.toFixed(2) + "%";
+
+                        dynamicMarkers.push({
+                            time: endPoint.time,
+                            position: "aboveBar",
+                            color: "red",
+                            shape: "arrowDown",
+                            text: formattedChange,
+                        });
+
+                        LightweightCharts.createSeriesMarkers(mainSeries, dynamicMarkers);
+
+                        const line = chart.addSeries(LightweightCharts.LineSeries, {
+                            color: "blue",
+                            lineWidth: 2,
+                            lineStyle: LightweightCharts.LineStyle.Solid,
+                        });
+
+                        line.setData([startPoint, endPoint]);
+                        trendlines.push(line);
+
+                        startPoint = null;
+                    }
+                } else {
+                    document.querySelector("footer").innerText =
+                        `📌 Clicked on: ${param.time} | O: ${bar.open} H: ${bar.high} L: ${bar.low} C: ${bar.close}`;
+                }
+            }); // END: chart.subscribeClick
+
+            // ✅ Update tooltip dynamically when moving the crosshair
+            chart.subscribeCrosshairMove((param) => {
+                if (!param || !param.point || !param.seriesData) {
+                    tooltip.style.opacity = "0"; // Hide tooltip when no data
+                    return;
+                }
+
+                const bar = param.seriesData.get(mainSeries);
+                if (!bar) return;
+
+                // Extract OHLC data
+                const time = param.time;
+                const open = bar.open.toFixed(2);
+                const high = bar.high.toFixed(2);
+                const low = bar.low.toFixed(2);
+                const close = bar.close.toFixed(2);
+
+                // ✅ Update tooltip with CSS-defined classes
+                tooltip.innerHTML = `
+                    <div class="ticker">${selectedTicker}</div>
+                    <hr class="divider">
+                    <div class="ohlc">
+                        <strong>📅 ${time}</strong><br>
+                        <span class="open">🔺 Open: ${open}</span>
+                        <span class="high">🔼 High: ${high}</span>
+                        <span class="low">🔽 Low: ${low}</span>
+                        <span class="close">⏺ Close: ${close}</span>
+                    </div>
+                `;
+
+                tooltip.style.display = "block"; // Ensure it's visible
+                tooltip.style.opacity = "1";     // Force full visibility
+                tooltip.style.zIndex = "1000";   // Bring to front
+                
+            });
+
+
+        } // END: loadRealStockData
+
+        loadRealStockData();
+
+        chartContainer.addEventListener("mousemove", (event) => {
+            const rect = chartContainer.getBoundingClientRect();
+            let x = event.clientX - rect.left + 15; // Offset for better visibility
+            let y = event.clientY - rect.top + 15;
+
+            // Prevent tooltip from overflowing
+            x = Math.min(x, rect.width - tooltip.offsetWidth - 10);
+            y = Math.min(y, rect.height - tooltip.offsetHeight - 10);
+
+            tooltip.style.left = `${x}px`;
+            tooltip.style.top = `${y}px`;
+            tooltip.style.opacity = "1";  // Ensure visibility
+        });
+
+        chartContainer.addEventListener("mouseleave", () => {
+            tooltip.style.opacity = "0"; // Smooth fade-out
+        });
+
+        chartContainer.addEventListener("mouseenter", () => {
+            tooltip.style.display = "block";
+        });
+
+        chart.subscribeCrosshairMove((param) => {
+            if (!param || !param.point || !param.seriesData) {
+                tooltip.style.opacity = "0"; // Hide tooltip when no data
+                return;
+            }
+        });
+
+        function findClosestPrice(clickPrice, bar) {
+            const prices = [bar.open, bar.high, bar.low, bar.close];
+            return prices.reduce((closest, curr) =>
+                Math.abs(curr - clickPrice) < Math.abs(closest - clickPrice) ? curr : closest
+            );
+        } // END: findClosestPrice
+
+        window.addEventListener("resize", () => {
+            chart.resize(window.innerWidth, window.innerHeight);
+        }); // END: window resize
+    </script>
+</body>
+
+</html>

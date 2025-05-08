@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0" />
+    <title>Lightweight Charts™ Customization</title>
+
+    <script type="text/javascript"
+        src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+    <script src="fetchStock.js"></script> <!-- ✅ Fetching logic -->
+    <script src="chartSetup.js"></script> <!-- ✅ Initializes chart -->
+    <script src="spyIntegration.js"></script> <!-- ✅ SPY & RS logic -->
+    <script src="indicators.js"></script> <!-- ✅ Indicators -->
+    <script src="eventListeners.js"></script> <!-- ✅ UI event handlers -->
+    <script src="coreLogic.js"></script> <!-- ✅ UI event handlers -->
+    <script src="patternDefinition.js"></script>
+
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header style="background: #f4f4f4; padding: 10px; text-align: center; font-size: 18px;">
+        TradingView Chart UI
+    </header>
+    <div style="display: flex; height: calc(100vh - 80px);">
+        <aside style="width: 250px; background: #f4f4f4; padding: 15px;">
+            <h3>Fetch & Store Stock Data</h3>
+            <input type="text" id="fetchStockInput" placeholder="Enter ticker (e.g., AAPL)"
+                style="width: 120px; padding: 3px; margin-top: 5px;">
+            <button id="fetchStockButton">Fetch & Save</button>
+
+            <h3>Stock Selection</h3>
+            <input type="text" id="stockInput" placeholder="e.g., AAPL"
+                style="width: 80px; padding: 3px; margin-top: 5px;">
+            <h3>Pattern Type</h3>
+            <div class="form-group">
+                
+                <select id="patternType" name="patternType">
+                    <option value="VCPshort">VCPshort</option>
+                    <option value="VCP">VCP</option>
+                    <option value="Rally">Rally</option>
+                    <option value="Breakout">Breakout</option>
+                    <option value="Buy Agressive">Buy Agressive</option>
+                    <option value="Buy Conservative">Buy Conservative</option>
+                    <option value="Stop">Stop</option>
+                    <option value="Stop Staggered">Stop Staggered</option>
+                    <option value="Sell on Strength">Sell on Strength</option>
+                    <option value="Sell at Target">Sell at Target</option>
+                    <option value="Sell at Harmonics">Sell at Harmonics</option>
+                </select>
+            </div>
+
+            <h3>Mode Selection</h3>
+            <div class="custom-select">
+                <select id="modeToggle">
+                    <option value="trendlineMode">🖊 Trendline Mode</option>
+                    <option value="drawPatternMode">📐 Pattern Draw Mode</option>
+                </select>
+            </div>
+
+            <button id="savePatternButton">Save Pattern</button>
+
+            <div id="savedPatternsContainer">
+                <h3 id="savedPatternsHeader">Saved Patterns <span class="toggle-arrow">▼</span></h3>
+                <ul id="savedPatternsList" class="hidden"></ul>  <!-- Collapsible List -->
+            </div>
+        
+
+            <h3>Settings</h3>
+            <p>Press <strong>⌘ (Command)</strong> on Mac or <strong>Ctrl</strong> on Windows to toggle Draw Mode.</p>
+            <p>Press <strong>Delete</strong> or <strong>Backspace</strong> to remove the last trendline.</p>
+        </aside>
+        <div id="container" style="flex: 1; position: relative;">
+            <!-- Tooltip -->
+            <div id="tooltip" class="tooltip"></div>
+            <div id="savePopup" class="popup">
+                <div class="popup-content">
+                    <h2>Confirm Save</h2>
+                    <p id="patternSummary"></p>
+                    <button id="confirmSave">Save</button>
+                    <button id="cancelSave">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer style="background: #f4f4f4; padding: 10px; text-align: center;">
+        Status: Ready
+    </footer>
+
+    <script type="text/javascript">
+
+
+
+        loadRealStockData();
+
+    </script>
+</body>
+
+</html>

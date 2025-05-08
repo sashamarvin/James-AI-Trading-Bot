@@ -1,0 +1,18 @@
+# Virtual Environment
+venv/
+__pycache__/
+
+# Data folder to avoid caching in GitHub
+data/
+
+# OS files
+.DS_Store
+
+# Python compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and database
+*.log
+*.sqlite3

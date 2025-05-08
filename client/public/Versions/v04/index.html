@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0" />
+    <title>Lightweight Charts™ Customization</title>
+    <script type="text/javascript" src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+      body { padding: 0; margin: 0; }
+      .drawing-mode { cursor: url('https://cdn-icons-png.flaticon.com/512/716/716291.png'), auto; }
+    </style>
+  </head>
+  <body>
+    <header style="background: #f4f4f4; padding: 10px; text-align: center; font-size: 18px;">
+      TradingView Chart UI
+    </header>
+    <div style="display: flex; height: calc(100vh - 80px);">
+      <aside style="width: 250px; background: #f4f4f4; padding: 15px;">
+        <h3>Settings</h3>
+        <p>Press <strong>⌘ (Command)</strong> on Mac or <strong>Ctrl</strong> on Windows to toggle Draw Mode.</p>
+        <p>Press <strong>Delete</strong> or <strong>Backspace</strong> to remove the last trendline.</p>
+      </aside>
+      <div id="container" style="flex: 1; position: relative;"></div>
+    </div>
+    <footer style="background: #f4f4f4; padding: 10px; text-align: center;">
+      Status: Ready
+    </footer>
+    
+    <script type="text/javascript">
+      console.log("DEBUG: Lightweight Charts Version:", LightweightCharts.version);
+      
+      async function fetchStockData() {
+          try {
+              const response = await fetch("alphavantage_CART.csv");
+              if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+              const data = await response.text();
+              const rows = data.split("\n").slice(1);
+              return rows.map(row => {
+                  const cols = row.split(",");
+                  if (cols.length < 5) return null;
+                  return { time: cols[0].trim(), open: parseFloat(cols[1]), high: parseFloat(cols[2]), low: parseFloat(cols[3]), close: parseFloat(cols[4]) };
+              }).filter(row => row !== null && !isNaN(row.open));
+          } catch (error) {
+              console.error("ERROR: Failed to load stock data!", error);
+              return [];
+          }
+      } // END: fetchStockData
+
+      const chartContainer = document.getElementById('container');
+      const chart = LightweightCharts.createChart(chartContainer);
+
+      chart.applyOptions({
+          crosshair: {
+              mode: LightweightCharts.CrosshairMode.Normal,
+              vertLine: { color: "#808080", width: 1, style: LightweightCharts.LineStyle.Dashed, visible: true },
+              horzLine: { color: "#808080", width: 1, style: LightweightCharts.LineStyle.Dashed, visible: true },
+          },
+      }); // END: Chart Initialization
+
+      let drawMode = false;
+      let startPoint = null;
+      let trendlines = [];
+      let dynamicMarkers = [];
+
+      // Toggle Draw Mode (⌘ for Mac, Ctrl for Windows)
+      document.addEventListener("keydown", (event) => {
+          if (event.metaKey || event.ctrlKey) {
+              drawMode = !drawMode;
+              document.querySelector("footer").innerText = drawMode ? "✏️ Draw Mode: ON" : "Draw Mode: OFF";
+              chartContainer.classList.toggle("drawing-mode", drawMode);
+              startPoint = null;
+          }
+      }); // END: Toggle Draw Mode
+
+      // Delete last trendline
+      document.addEventListener("keydown", (event) => {
+          if (event.key === "Delete" || (event.key === "Backspace" && !event.metaKey && !event.ctrlKey)) {
+              console.log("DEBUG: Delete Key Pressed");
+              document.querySelector("footer").innerText = "🗑️ Delete Key Pressed";
+
+              if (trendlines.length > 0) {
+                  const lastLine = trendlines.pop();
+                  console.log("DEBUG: Removing last trendline:", lastLine);
+                  chart.removeSeries(lastLine);
+                  document.querySelector("footer").innerText = "🗑️ Last Trendline Deleted";
+              } else {
+                  console.log("DEBUG: No trendlines to delete");
+              }
+          }
+      }); // END: Delete Last Trendline
+
+      async function loadRealStockData() {
+          const stockData = await fetchStockData();
+          if (stockData.length === 0) return;
+          
+          const mainSeries = chart.addSeries(LightweightCharts.CandlestickSeries);
+          mainSeries.setData(stockData);
+
+          
+
+          // ✅ Trendline & Dynamic Marker Logic
+          chart.subscribeClick(param => {
+              if (!param.time) return;
+
+              const bar = param.seriesData.get(mainSeries);
+              if (!bar) return;
+
+              const cursorPrice = mainSeries.coordinateToPrice(param.point.y);
+              const snapPrice = findClosestPrice(cursorPrice, bar);
+
+              if (drawMode) {
+                  if (!startPoint) {
+                      startPoint = { time: param.time, value: snapPrice };
+                      console.log("DEBUG: First click stored at", startPoint);
+
+                      // ✅ Place first marker (blue arrowUp)
+                      dynamicMarkers = [
+                          {
+                              time: startPoint.time,
+                              position: "belowBar",
+                              color: "blue",
+                              shape: "arrowUp",
+                              text: "",
+                          }
+                      ];
+                      // mainSeries.setMarkers(dynamicMarkers);
+                      // ✅ Apply static markers correctly
+                        const { createSeriesMarkers } = LightweightCharts;
+                        const seriesMarkers = createSeriesMarkers(mainSeries, dynamicMarkers);
+
+                  } else {
+                      const endPoint = { time: param.time, value: snapPrice };
+
+                      if (startPoint.time === endPoint.time && startPoint.value === endPoint.value) {
+                          console.warn("⚠️ WARN: Identical points selected! Pick a different second point.");
+                          return;
+                      }
+
+                      console.log("DEBUG: Drawing trendline from", startPoint, "to", endPoint);
+
+                      // ✅ Calculate Percentage Change
+                      const percentageChange = ((endPoint.value - startPoint.value) / startPoint.value) * 100;
+                      const formattedChange = percentageChange.toFixed(2) + "%";
+
+                      // ✅ Place second marker (red arrowDown with % change)
+                      dynamicMarkers.push({
+                          time: endPoint.time,
+                          position: "aboveBar",
+                          color: "red",
+                          shape: "arrowDown",
+                          text: formattedChange,
+                      });
+
+                      // mainSeries.setMarkers(dynamicMarkers);
+                      // ✅ Apply static markers correctly
+                      const { createSeriesMarkers } = LightweightCharts;
+                        const seriesMarkers = createSeriesMarkers(mainSeries, dynamicMarkers);
+
+                      // ✅ Draw Trendline
+                      const line = chart.addSeries(LightweightCharts.LineSeries, {
+                          color: "blue",
+                          lineWidth: 2,
+                          lineStyle: LightweightCharts.LineStyle.Solid,
+                      });
+
+                      line.setData([startPoint, endPoint]);
+                      trendlines.push(line);
+
+                      console.log("✅ DEBUG: Trendline successfully drawn!");
+                      startPoint = null;
+                  }
+            } else {
+                  document.querySelector("footer").innerText =
+                      `📌 Clicked on: ${param.time} | O: ${bar.open} H: ${bar.high} L: ${bar.low} C: ${bar.close}`;
+              }
+          }); // END: chart.subscribeClick
+      } // END: loadRealStockData
+
+      loadRealStockData();
+
+      function findClosestPrice(clickPrice, bar) {
+          const prices = [bar.open, bar.high, bar.low, bar.close];
+          return prices.reduce((closest, curr) =>
+              Math.abs(curr - clickPrice) < Math.abs(closest - clickPrice) ? curr : closest
+          );
+      } // END: findClosestPrice
+
+      window.addEventListener("resize", () => {
+          chart.resize(window.innerWidth, window.innerHeight);
+      }); // END: window resize
+    </script>
+  </body>
+</html>

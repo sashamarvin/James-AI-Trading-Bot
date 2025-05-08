@@ -1,0 +1,109 @@
+/* ─────────────────────────────────────────────
+ ✅ CHART STYLES
+───────────────────────────────────────────── */
+body {
+  font-family: "Helvetica", "Arial", sans-serif;
+  font-size: 14px; /* ✅ Slightly smaller font */
+  font-weight: 300; /* ✅ Thinner font */
+  background-color: #e2e2e2;
+  color: #2f549d;
+  margin: 0;
+  padding: 0;
+}
+
+/* Chart container */
+#chart-container {
+  width: 100%;
+  height: 600px;
+}
+
+/* Sidebar (if any) */
+.sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 250px;
+  height: 100%;
+  background-color: rgba(30, 30, 30, 0.9);
+  padding: 10px;
+}
+
+/* Toggle Button */
+.toggle-button {
+  background-color: #26a69a;
+  border: none;
+  padding: 10px 15px;
+  color: white;
+  cursor: pointer;
+}
+
+.toggle-button:hover {
+  background-color: #1e8877;
+}
+
+/* Candlestick Styling */
+.candlestick-up {
+  color: #26a69a;
+}
+
+.candlestick-down {
+  color: #ef5350;
+}
+
+.tooltip {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.9); /* ✅ Soft white semi-transparent */
+  color: #2f549d;
+  font-size: 12px;
+  font-weight: 400;
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  display: none; /* ✅ Initially hidden */
+  max-width: 160px; /* ✅ Vertical layout */
+  line-height: 1.4;
+}
+
+/* ✅ Larger ticker symbol */
+.tooltip .ticker {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; /* ✅ Prioritizes Helvetica Neue */
+  font-size: 18px; /* ✅ Slightly bigger */
+  font-weight: 400; /* ✅ Thinner */
+  text-align: left;
+  color: #1f3b8b;
+  letter-spacing: 0.5px; /* ✅ Adds slight spacing for elegance */
+}
+
+/* ✅ Divider line */
+.tooltip .divider {
+  border: none;
+  border-top: 1px solid rgba(47, 84, 157, 0.4);
+  margin: 4px 0;
+}
+
+/* ✅ OHLC values */
+.tooltip .ohlc {
+  text-align: left;
+}
+
+.tooltip .ohlc span {
+  display: block;
+  font-size: 12px;
+}
+
+/* ✅ Color-coding */
+.tooltip .open {
+  color: #27ae60;
+}
+
+.tooltip .high {
+  color: #2ecc71;
+}
+
+.tooltip .low {
+  color: #e74c3c;
+}
+
+.tooltip .close {
+  color: #f39c12;
+}

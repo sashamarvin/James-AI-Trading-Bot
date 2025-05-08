@@ -1,0 +1,162 @@
+1 position = 1/5 of total account 90k
+
+A. initial 1/4 buy, usually a pilot buy with really minimal risk to finance/derisk the:
+B. 1/2 buy at breakout confirmation
+C. add 1/4 buy at additional confirmation
+
+main rules for buying:
+1. market has traction, easy dollar, we go in full as soon as possible then we take profits along the way
+2. market is going sideways, average breakouts on other stocks don't work so well, we go in small, we add only if it looks great, we take profits sooner
+3. market is correcting down, we just chill
+
+James will be told how the market is, no need for him to get into that for now. Once I find the right stock after selection:
+
+Market in mode 1
+A James has to use slanted line to get in, stop at most recent low peak, we trade only if risk is less than 4%
+B James has to use the most recent resistance level in the pattern, once above even one cent, he place the buy, stop at most recent lower low, we trade only if risk is less than 7%
+C we add 1/4 at next pivot or follow thru which comes first. Stop moves up if we have a local new lower low.
+
+Market in mode 2 ( I will be really selective here only stocks with RS 98 or more and strong and not dependent of the market trends )
+A same
+B as above but only if we see accumulation at resistance level, like at least 3 days of some sort of contraction, and we have at least 1R so we can increase the stop at or above 1R
+C we add 1/4 at the next pivot with some sort of accumulation and 1R of the 3/4 position now.
+
+------
+
+It is imperative that we start grading the tools, that means that once we have completed the function or tool, we load the record where I defined the trade and we look at the deltas of what James came up with without my guidance.
+
+
+
+Recap 2:
+
+9/9-11  there's a 3 days consolidation, forming a classic small W formation. Sub trend is slightly positive. Then on 9/12 we have the real breakout, and trend goes strong (not parabolic) and we have 4 days in almost linear strong trend. The volume of those 4 days is below average, that means there is not much supply. Am I correct? Please be objective, don't try to please me.
+The 9/16 price clears the peak of the 08/26, like if resistance goes unnoticed. 17 keeps going, volume is increasing, all 4 days in a row the close is very close to the high, indicating strength. Not sure why the 18 had a blast, but looking at volume most probably some funds came in, some big investors gave boosters on the 18 and 19 when it goes parabolic. Also 18th hits the W1 segment harmonic, but does not come back, closes close to high. It's still very strong. Do You agree? Given the magnitude of the Move I would sell all we have at first sign of stalling. The 9/20 has a big spike in volume and since the price, proportionally to volume, does not go to the roof even more, I believe there's a lot of selling and buying going on (accumulation and distribution almost equals) and looks huge, we need to sell there on the 20th. I understand it could be just consolidating a little bit and maybe it will go more, but am not greedy, a 16% move like this in 6 days is a great move for these kinds of stocks and we need to lock in profits.
+
+this is not happening with our code, so we need to carefully understand why, and put into factor all the things I mention up here.
+
+I don't like these criteria.
+
+Am more oriented, in:
+
+Woah there's a huge increase of volume.
+we went to 16% profits in just 6 days
+this is a huge acceleration, supported by a parabolic (exponential price increase)
+but now it lost it's momentum (the 20th) so we sell full
+Darn!! the price had a big deceleration compared to previous days.
+
+events:
+
+1 position = 1/5 of total account 90k
+
+A. initial 1/4 buy, usually a pilot buy with really minimal risk to finance/derisk the:
+B. 1/2 buy at breakout confirmation
+C. add 1/4 buy at additional confirmation
+
+main rules for buying:
+1. market has traction, easy dollar, we go in full as soon as possible then we take profits along the way
+2. market is going sideways, average breakouts on other stocks don't work so well, we go in small, we add only if it looks great, we take profits sooner
+3. market is correcting down, we just chill
+
+James will be told how the market is, no need for him to get into that for now. Once I find the right stock after selection:
+
+Market in mode 1
+A James has to use slanted line to get in, stop at most recent low peak, we trade only if risk is less than 4%
+B James has to use the most recent resistance level in the pattern, once above even one cent, he place the buy, stop at most recent lower low, we trade only if risk is less than 7%
+C we add 1/4 at next pivot or follow thru which comes first. Stop moves up if we have a local new lower low.
+
+Market in mode 2 ( I will be really selective here only stocks with RS 98 or more and strong and not dependent of the market trends )
+A same
+B as above but only if we see accumulation at resistance level, like at least 3 days of some sort of contraction, and we have at least 1R so we can increase the stop at or above 1R
+C we add 1/4 at the next pivot with some sort of accumulation and 1R of the 3/4 position now.
+
+------
+
+It is imperative that we start grading the tools, that means that once we have completed the function or tool, we load the record where I defined the trade and we look at the deltas of what James came up with without my guidance.
+
+
+
+Total score = 0
+
+09/12 breakout day 
+Closed high = +1
+Trend strong = +1
+Green days in a row 2 = +1
+red_vs_green_volume since breakout green = +1
+Went thru previous resistance without hesitation = 1
+Went thru W3 without hesitation = 0
+Price Acceleration/Volume ratio = 2 (very good price up with not much supply)
+Actual profit: 1.2%
+This score 7 Total score 7
+
+9/13
+Closed high = +1
+Trend strong = +1
+Green days in a row 3 = +1
+red_vs_green_volume since breakout green = +1
+Went thru previous resistance without hesitation = 0
+Went thru W3 without hesitation = 0
+Price Acceleration/Volume ratio = 2
+Actual profit: 3.7%
+This score 6 Total score 13
+
+
+9/16
+Closed high = +1
+Trend strong = +1
+Green days in a row 4 = +1
+red_vs_green_volume since breakout green = +1
+Went thru previous resistance without hesitation = 0
+Went thru W3 without hesitation = 0
+Price Acceleration/Volume ratio = 2
+Actual profit: 4.2%
+This score 6 Total score 19
+
+9/17
+Closed high = 0 (looks not above .78)
+Trend strong = +1
+Green days in a row 5 = +1
+red_vs_green_volume since breakout green = +1
+Went thru previous resistance without hesitation = +1
+Went thru W3 without hesitation = 1
+Price Acceleration/Volume ratio = 2
+Actual profit: 5.75%
+This score 7 Total score 26
+
+9/18
+Closed high = +1
+Trend parabolic = +2
+Green days in a row 6 = +1
+red_vs_green_volume since breakout green = +1
+Went thru previous resistance without hesitation = 0
+Went thru W2 without hesitation = 1
+Price Acceleration/Volume ratio = 2 (proportional to price increase)
+Actual profit: 10% be ready to sell 1/2 at first sign of trend regression
+This score 8 Total score 34
+
+
+
+9/19
+Closed high = +1
+Trend parabolic = +2
+Green days in a row 7 = +1
+red_vs_green_volume since breakout green = +1
+Went thru previous resistance without hesitation = 0
+Went thru W1 without hesitation = +1
+Price Acceleration/Volume ratio = +1 not good as day before I guess 
+Actual profit: 16% we're well above 12% so sell at first regression signal.
+This score 7 Total score 41
+
+9/20
+Closed high/low = 0
+Trend strong = +1
+Green days in a row 8 = +1
+red_vs_green_volume since breakout green = +1
+Went thru previous resistance without hesitation = 0
+Went thru W2 without hesitation = 0
+Price Acceleration/Volume ratio = -10 (STALL !!!! --> SELL!)
+Actual profit: evaluate at sell.
+This score 0 Total score 0 RESET !!!!
+
+1R 2R we keep them for the stop logic
+
+

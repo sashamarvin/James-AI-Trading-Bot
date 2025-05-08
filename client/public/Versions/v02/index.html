@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0" />
+    <title>Lightweight Charts™ Customization</title>
+    <script type="text/javascript" src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+      body { padding: 0; margin: 0; }
+      .drawing-mode { cursor: url('https://cdn-icons-png.flaticon.com/512/716/716291.png'), auto; }
+    </style>
+  </head>
+  <body>
+    <header style="background: #f4f4f4; padding: 10px; text-align: center; font-size: 18px;">
+      TradingView Chart UI
+    </header>
+    <div style="display: flex; height: calc(100vh - 80px);">
+      <aside style="width: 250px; background: #f4f4f4; padding: 15px;">
+        <h3>Settings</h3>
+        <p>Press <strong>⌘ (Command)</strong> on Mac or <strong>Ctrl</strong> on Windows to toggle Draw Mode.</p>
+      </aside>
+      <div id="container" style="flex: 1; position: relative;"></div>
+    </div>
+    <footer style="background: #f4f4f4; padding: 10px; text-align: center;">
+      Status: Ready
+    </footer>
+    
+    <script type="text/javascript">
+      console.log("DEBUG: Lightweight Charts Version:", LightweightCharts.version);
+      
+      async function fetchStockData() {
+          try {
+              const response = await fetch("alphavantage_CART.csv");
+              if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+              const data = await response.text();
+              const rows = data.split("\n").slice(1);
+              return rows.map(row => {
+                  const cols = row.split(",");
+                  if (cols.length < 5) return null;
+                  return { time: cols[0].trim(), open: parseFloat(cols[1]), high: parseFloat(cols[2]), low: parseFloat(cols[3]), close: parseFloat(cols[4]) };
+              }).filter(row => row !== null && !isNaN(row.open));
+          } catch (error) {
+              console.error("ERROR: Failed to load stock data!", error);
+              return [];
+          }
+      }
+      
+      const chartContainer = document.getElementById('container');
+      const chart = LightweightCharts.createChart(chartContainer);
+      
+      chart.applyOptions({
+          crosshair: {
+              mode: LightweightCharts.CrosshairMode.Normal,
+              vertLine: { color: "#808080", width: 1, style: LightweightCharts.LineStyle.Dashed, visible: true },
+              horzLine: { color: "#808080", width: 1, style: LightweightCharts.LineStyle.Dashed, visible: true },
+          },
+      });
+      
+      let drawMode = false;
+      let startPoint = null;
+      let tempLine = null;
+
+      // Toggle Draw Mode (⌘ for Mac, Ctrl for Windows)
+      document.addEventListener("keydown", (event) => {
+          if (event.metaKey || event.ctrlKey) {
+              drawMode = !drawMode;
+              document.querySelector("footer").innerText = drawMode ? "✏️ Draw Mode: ON" : "Draw Mode: OFF";
+              chartContainer.classList.toggle("drawing-mode", drawMode);
+              startPoint = null;
+              if (tempLine) {
+                  chart.removeSeries(tempLine);
+                  tempLine = null;
+              }
+          }
+      });
+
+      async function loadRealStockData() {
+          const stockData = await fetchStockData();
+          if (stockData.length === 0) return;
+          const mainSeries = chart.addSeries(LightweightCharts.CandlestickSeries);
+          mainSeries.setData(stockData);
+
+          chart.subscribeClick(param => {
+              if (!param.time) return;
+              const bar = param.seriesData.get(mainSeries);
+              if (!bar) return;
+
+              const cursorPrice = mainSeries.coordinateToPrice(param.point.y);
+              const snapPrice = findClosestPrice(cursorPrice, bar);
+
+              if (drawMode) {
+                  if (!startPoint) {
+                      startPoint = { time: param.time, value: snapPrice };
+                      if (!tempLine) {
+                          tempLine = chart.addSeries(LightweightCharts.LineSeries, {
+                              color: "gray",
+                              lineWidth: 1,
+                              lineStyle: LightweightCharts.LineStyle.Dotted,
+                          });
+                      }
+                      tempLine.setData([startPoint, startPoint]); // Initialize with the first point
+                  } else {
+                      const line = chart.addSeries(LightweightCharts.LineSeries, {
+                          color: "blue",
+                          lineWidth: 2,
+                          lineStyle: LightweightCharts.LineStyle.Solid,
+                      });
+                      line.setData([startPoint, { time: param.time, value: snapPrice }]);
+                      startPoint = null;
+                      chart.removeSeries(tempLine);
+                      tempLine = null;
+                  }
+              } else {
+                  document.querySelector("footer").innerText = 
+                      `📌 Clicked on: ${param.time} | O: ${bar.open} H: ${bar.high} L: ${bar.low} C: ${bar.close}`;
+              }
+          });
+
+          // Temp Line Moves as Cursor Moves
+          chart.subscribeCrosshairMove(param => {
+              if (!startPoint || !drawMode || !param.time) return;
+              
+              const cursorPrice = mainSeries.coordinateToPrice(param.point.y);
+              const snapPrice = findClosestPrice(cursorPrice, param.seriesData.get(mainSeries));
+
+              if (tempLine) {
+                  tempLine.setData([startPoint, { time: param.time, value: snapPrice }]);
+              }
+          });
+      }
+
+      function findClosestPrice(clickPrice, bar) {
+          const prices = [bar.open, bar.high, bar.low, bar.close];
+          return prices.reduce((closest, curr) =>
+              Math.abs(curr - clickPrice) < Math.abs(closest - clickPrice) ? curr : closest
+          );
+      }
+
+      loadRealStockData();
+      
+      window.addEventListener("resize", () => {
+          chart.resize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>

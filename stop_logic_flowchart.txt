@@ -1,0 +1,99 @@
+
+┌──────────────┐
+│ 1st BUY (Pilot)
+└──────────────┘
+- Position: 1/4
+- Stop: At base low or key support
+- Risk: ≤ 4%
+- Stop remains until:
+    • Follow-through day
+    • 1R achieved → then may raise stop
+
+┌──────────────┐
+│ 2nd BUY (Breakout)
+└──────────────┘
+- Position: Add 1/2
+- Stop: Shared with 1st buy unless new support forms
+- Risk check: Combined average risk ≤ 7%
+- Stop may move to:
+    • Mid-pivot support
+    • Bottom of handle / consolidation
+
+┌──────────────┐
+│ 3rd BUY (Follow-Through)
+└──────────────┘
+- Position: Add final 1/4
+- Stop: Recalculated for all shares
+- May trail:
+    • Short-term swing low
+    • EMA (if extended)
+    • Trendline (if accelerating)
+
+┌──────────────┐
+│ Rally Phase
+└──────────────┘
+- Trailing Stop Tightens
+    • Distance from price to EMA increases
+- Sell function:
+    • May lock partial profits
+    • May release stop if large gap from price
+
+┌──────────────┐
+│ STOP Hit
+└──────────────┘
+- All shares exit
+- Stop clears
+- Sell logic handles proceeds
+
+------------
+
+BuyA slanted down (used for early entry or buy on pullback) buy_pilot_position()
+BuyB horizontal (used for most cases) buy_breakout_confirmation()
+BuyC follow thru (used for additional buys crossing previous day high && max 3 days from breakout day high) buy_additional_confirmation()
+
+
+Aggressive
+1st buy, BuyA or B, pos size 1/4, stop at closest support level, max risk 4% 
+2nd buy, BuyB, pos size 1/2, stop at closest support level for all shares. Max risk 7%
+3RD buy, BuyC or A or B, pos size 1/4, stop at closest support level for all shares. Max risk 7%
+
+Conservative
+1st buy, BuyB, pos size 1/4, requires min 3 days consolidation or a pivot, stop at closest support level, max risk 5%
+2nd buy, BuyB or C, pos size 1/2, requires at least 5 days consolidation (or pivot point), max risk 7%
+3rd buy, BuyB or C, pos size 1/4, requires at least 3 days consolidation, max risk 7% from most recent low swing (stop)
+
+
+Stop logic
+Set at closest support level (most recent low swing) immediately after a buy for all open shares.
+If last support is higher than previous support, Stop is automatically set at last support and incorporates total open position.
+If price starts accelerating and going parabolic and distance from ema10 and 50 increases exponentially, stop gets closer to price proportionally.
+If on strength or parabolic mode is detected, sell logic sells partial position, stop reverts to previous lower level (needs more verification and parameters).
+
+Sell logic
+1R = break even plus risk % that was at buy. 2R twice the risk %, 3R... All are Calculated compounding the total open position shares risk at buy time.
+If price is following parallel ema50 trend is considered normal trend, if it accelerates, ema10 and ema50 are divergent more than 40º it's in parabolic mode, less is strong mode, less than 10 is normal mode. Also the projections of the last 3 days higher highs angle tell us how it's accelerating, and the distance of the price from ema10 and 50 will tell us about acceleration, we need to gauge those parameters.
+A closing high or near the high is also a positive sign.
+If we had a 3 day parabolic move we need to sell into strength. I don't know exactly what's the best parameters setting. But if we have a stall we need to decide if we are selling a portion of the position or the whole position, need to see maybe James can ask what were the previous rallies average % from breakout. If we don't know we can delegate to harmonics, and if we don't have those we can just go determine how it's behaving.
+What I know it's that we need to secure some gains along the way.
+Harmonics are the W segments, W1 W2 W3 the W4 is not used because it's the active one. W2 x 2 = W2 target, W1+W2 = W1 target, W3+W2 = W3 target.
+Then we can sell 1/2 if we reach the default target (20%) and we keep 1/4 if it goes more. If it goes more we let it run and we bring up the stop accordingly. 
+
+lambda_flat_or_ascending_highs_lows() function is great to detect the swings on the uptrend or rallies. So we will use that to determine the stop levels. While lambda_versify_highs_lows() for detecting swings on lower highs is great for pullbacks.
+detect_lambda_type_smart() does the job when you have a mixed situation.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

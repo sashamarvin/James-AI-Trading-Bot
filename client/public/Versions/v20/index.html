@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0" />
+    <title>Lightweight Charts™ Customization</title>
+
+    <script type="text/javascript"
+        src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+    <script src="fetchStock.js"></script> <!-- ✅ Fetching logic -->
+    <script src="chartSetup.js"></script> <!-- ✅ Initializes chart -->
+    <script src="spyIntegration.js"></script> <!-- ✅ SPY & RS logic -->
+    <script src="indicators.js"></script> <!-- ✅ Indicators -->
+    <script src="eventListeners.js"></script> <!-- ✅ UI event handlers -->
+    <script src="coreLogic.js"></script> <!-- ✅ UI event handlers -->
+    <script src="patternDefinition.js"></script>
+    <script src="patternStatusLists.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header style="background: #e9e9e9; padding: 10px; text-align: center; font-size: 18px;">
+        TradingView Chart UI
+    </header>
+    <div style="display: flex; height: calc(100vh - 80px);">
+        <aside style="width: 250px; background: #f4f4f4; padding: 15px;">
+            <h3>Stock Selection</h3>
+            <div class="input-container">
+                <input type="text" id="stockInput" placeholder="AAPL" class="stockInput">
+                <button id="fetchStockButton" class="appleBlueButt">Fetch & Save</button>
+            </div>
+
+            
+            <h3>Pattern Type</h3>
+            <div class="form-group">
+                <select id="patternType" name="patternType">
+                    <option value="please select">please select...</option>
+                    <option value="VCPshort">VCPshort</option>
+                    <option value="VCP">VCP</option>
+                    <option value="TightFlag">Tight Flag</option>
+                    <option value="Cup and handle">Cup and handle</option>
+                    <option value="Flat Base">Flat Base</option>
+                    <option value="Low Cheat">Low Cheat</option>
+                    <option value="Rally normal">Rally normal</option>
+                    <option value="Rally strong">Rally strong</option>
+                    <option value="Rally parabolic">Rally parabolic</option>
+                    <option value="Rally exhaustion">Rally exhaustion</option>
+                    <option value="Buy Agressive">Buy Agressive</option>
+                    <option value="Buy Conservative">Buy Conservative</option>
+                    <option value="Stop Staggered">Stop Staggered</option>
+                    <option value="Sell on Strength">Sell on Strength</option>
+                    <option value="Sell at Harmonics">Sell at Harmonics</option>
+                </select>
+            </div>
+
+            <div id="patternChecklist" class="hidden">
+                <h3 id="patternTitle">Define Pattern</h3>
+                <ul>
+                    <li onclick="setDrawPatternMode()">Draw Pattern: <span id="drawPatternStatus">--</span></li>
+                    <li onclick="setBreakoutLineMode()">Breakout Line: <span id="breakoutLineStatus">--</span></li>
+                    <li onclick="setStopLineMode()">Stop Line: <span id="stopLineStatus">--</span></li>
+                    <li onclick="setVolDryUpMode()">Vol Dry-Up Days: <span id="volDryUpStatus">--</span></li>
+                    <li onclick="setShakeoutMode()">Shakeout Day: <span id="shakeoutStatus">--</span></li>
+                    <li onclick="setFollowThruMode()">Follow Thru Day: <span id="followthruStatus">--</span></li>
+                    <li onclick="setBuyPointsMode()">Buy points: <span id="buyStatus">--</span></li>
+                    <li onclick="setSellPointsMode()">Sell points: <span id="sellStatus">--</span></li>
+                    <li onclick="toggleVolatilityContraction()">Volatility Contraction: <span id="volatilityContractionStatus">no</span></li>
+                    <li onclick="toggleConsolidationConfirmed()">Consolidation Confirmed: <span id="consolidationConfirmedStatus">no</span></li>
+                    <li onclick="toggleNoFlyZone()">No-Fly Zone: <span id="noFlyZoneStatus">no</span></li>
+                    <li>Invalid Reason: <span id="invalidReasonStatus">none</span></li>
+                </ul>
+            </div>
+
+            <h3>Drawing Tools</h3>
+            <div class="drawing-tools">
+                <button id="trendlineMode" class="mode-btn" data-mode="trendlineMode" title="Trendline Mode">🖊</button>
+                <button id="drawPatternMode" class="mode-btn" data-mode="drawPatternMode" title="Pattern Draw Mode">📐</button>
+                <label class="switch">
+                    <input type="checkbox" id="snapModeToggle">
+                    <span class="slider round"></span>
+                </label>
+                <span>Snap</span>
+            </div>
+
+            <div id="buttonContainer">
+                <button id="savePatternButton" class="appleBlueButt">Save Pattern</button>
+                <button id="resetChecklistBtn" class="appleBlueButt">Reset Checklist</button>
+            </div>
+
+            <div id="savedPatternsContainer">
+                <h3 id="savedPatternsHeader">Saved Patterns <span class="toggle-arrow">▼</span></h3>
+                <ul id="savedPatternsList" class="hidden"></ul>  <!-- Collapsible List -->
+            </div>
+        
+
+        </aside>
+        <div id="container" style="flex: 1; position: relative;">
+            <!-- Tooltip -->
+            <div id="tooltip" class="tooltip"></div>
+            <div id="savePopup" class="popup">
+                <div class="popup-content">
+                    <h2>Confirm Save</h2>
+                    <p id="patternSummary"></p>
+                    <button id="confirmSave">Save</button>
+                    <button id="cancelSave">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer style="background: #e9e9e9; padding: 10px; text-align: center;">
+        Status: Ready
+    </footer>
+
+    <script type="text/javascript">
+
+
+
+        loadRealStockData();
+
+    </script>
+</body>
+
+</html>

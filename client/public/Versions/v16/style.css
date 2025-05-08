@@ -1,0 +1,435 @@
+/* ─────────────────────────────────────────────
+ ✅ CHART STYLES
+───────────────────────────────────────────── */
+body {
+  font-family: "Helvetica", "Arial", sans-serif;
+  font-size: 14px; /* ✅ Slightly smaller font */
+  font-weight: 300; /* ✅ Thinner font */
+  background-color: #e2e2e2;
+  color: #2f549d;
+  margin: 0;
+  padding: 0;
+}
+
+/* Chart container */
+#chart-container {
+  width: 100%;
+  height: 600px;
+}
+
+/* Sidebar (if any) */
+.sidebar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 250px;
+  height: 100%;
+  background-color: rgba(30, 30, 30, 0.9);
+  padding: 10px;
+}
+
+/* ✅ Adjust h3 Size and Spacing */
+h3 {
+  font-size: 14px;  /* ✅ Smaller than default */
+  font-weight: 600;  /* ✅ Medium weight */
+  margin: 10px 0 5px 0;  /* ✅ Less space around */
+  color: #333;  /* ✅ Dark gray for readability */
+}
+
+/* ✅ Ensure Sidebar Titles are Clean & Compact */
+aside h3 {
+  font-size: 13px;  /* ✅ Even smaller inside the sidebar */
+  font-weight: 500;
+  margin: 8px 0 4px 0;
+  color: #444;
+}
+
+/* Toggle Button */
+.toggle-button {
+  background-color: #26a69a;
+  border: none;
+  padding: 10px 15px;
+  color: white;
+  cursor: pointer;
+}
+
+.toggle-button:hover {
+  background-color: #1e8877;
+}
+
+/* Candlestick Styling */
+.candlestick-up {
+  color: #26a69a;
+}
+
+.candlestick-down {
+  color: #ef5350;
+}
+
+.tooltip {
+  position: absolute;
+  background-color: rgba(255, 255, 255, 0.9); /* ✅ Soft white semi-transparent */
+  color: #2f549d;
+  font-size: 12px;
+  font-weight: 400;
+  border-radius: 8px;
+  padding: 8px 10px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+  display: none; /* ✅ Initially hidden */
+  max-width: 160px; /* ✅ Vertical layout */
+  line-height: 1.4;
+}
+
+/* ✅ Larger ticker symbol */
+.tooltip .ticker {
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; /* ✅ Prioritizes Helvetica Neue */
+  font-size: 18px; /* ✅ Slightly bigger */
+  font-weight: 400; /* ✅ Thinner */
+  text-align: left;
+  color: #1f3b8b;
+  letter-spacing: 0.5px; /* ✅ Adds slight spacing for elegance */
+}
+
+/* ✅ Divider line */
+.tooltip .divider {
+  border: none;
+  border-top: 1px solid rgba(47, 84, 157, 0.4);
+  margin: 4px 0;
+}
+
+/* ✅ OHLC values */
+.tooltip .ohlc {
+  text-align: left;
+}
+
+.tooltip .ohlc span {
+  display: block;
+  font-size: 12px;
+}
+
+/* ✅ Color-coding */
+.tooltip .open {
+  color: #27ae60;
+}
+
+.tooltip .high {
+  color: #2ecc71;
+}
+
+.tooltip .low {
+  color: #e74c3c;
+}
+
+.tooltip .close {
+  color: #f39c12;
+}
+
+.custom-select {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+}
+
+.custom-select select {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  border: 1px solid #2d528f;
+  border-radius: 5px;
+  background-color: #f4f4f4;
+  color: #222;
+  appearance: none; /* Hide default dropdown icon */
+  cursor: pointer;
+}
+
+.custom-select::after {
+  content: "▼";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: #3b75cb;
+  pointer-events: none;
+}
+
+.custom-select select:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+/* Pop-Up Container */
+.popup {
+  display: none; /* Hidden by default */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px 25px;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  text-align: left; /* ✅ Left-align text */
+  z-index: 1000;
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  width: 320px; /* ✅ Keep it compact */
+}
+
+/* Pop-Up Header */
+.popup-content h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: #333; /* Dark gray */
+}
+
+/* Pop-Up Body Text */
+.popup-content p {
+  font-size: 14px;
+  line-height: 1.4;
+  color: #555; /* Softer gray */
+}
+
+/* Buttons (Apple-Style) */
+.popup-content button {
+  margin-top: 15px;
+  background: #007aff;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: inline-block;
+  width: 100%;
+}
+
+.popup-content button:hover {
+  background: #005ecb;
+}
+
+.popup-content button:last-child {
+  background: #e5e5e5; /* Light gray */
+  color: #333;
+  margin-top: 8px;
+}
+
+.popup-content button:last-child:hover {
+  background: #d4d4d4;
+}
+
+.input-container {
+  display: flex;
+  align-items: center; /* ✅ Ensures both elements are aligned horizontally */
+  gap: 8px; /* ✅ Adds spacing between input & button */
+}
+
+.stockInput {
+  width: 54px;
+  padding: 4px 6px; /* ✅ Keeps input compact */
+  height: 20px; /* ✅ Slightly shorter to match the button */
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  text-align: left;
+}
+
+.appleBlueButt {
+  background: #007aff;
+  color: white;
+  font-size: 13px; /* ✅ Matches input text size */
+  font-weight: 500;
+  padding: 4px 10px; /* ✅ Matches input padding */
+  height: 28px; /* ✅ Same height as input */
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease-in-out, transform 0.1s ease-in-out;
+  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", "Helvetica Neue", sans-serif;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.appleBlueButt:hover {
+  background: #005ecb;
+}
+
+.appleBlueButt:active {
+  background: #004ba5;
+  transform: scale(0.98);
+}
+
+/* ✅ Saved Patterns Header (Collapsible) */
+#savedPatternsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: #333;
+  padding: 6px;
+  border-radius: 5px;
+  background: #e0e0e0;
+  transition: background 0.2s ease-in-out;
+}
+
+#savedPatternsHeader:hover {
+  background: #d4d4d4;
+}
+
+/* ✅ Toggle Arrow */
+.toggle-arrow {
+  font-size: 14px;
+  transition: transform 0.2s ease-in-out;
+}
+
+/* ✅ Hidden Class for Collapsible Effect */
+.hidden {
+  display: none;
+}
+
+/* ✅ Saved Patterns List */
+#savedPatternsList {
+  list-style: none;
+  padding: 0;
+  margin-top: 5px;
+}
+
+.pattern-section {
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.pattern-header {
+  cursor: pointer;
+  padding: 4px;
+  font-weight: bold;
+  font-size: 11px;
+  background: #f4f4f4;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.pattern-header:hover {
+  background: #e0e0e0;
+}
+
+.pattern-list {
+  padding-left: 12px;
+  display: none; /* Hidden by default */
+}
+
+.pattern-list.collapsed {
+  display: block; /* Show when toggled */
+}
+
+/* ✅ Individual Pattern Item */
+.pattern-list li {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #333;
+  cursor: pointer;
+  border-radius: 4px; /* ✅ Rounded corners */
+  transition: background 0.2s ease-in-out;
+}
+
+/* ✅ Hover Effect (Background Change) */
+.pattern-list li:hover {
+  background: rgba(0, 122, 255, 0.2); /* ✅ Light blue hover */
+  color: #222; /* ✅ Keep text readable */
+}
+
+/* ✅ General Dropdown Style */
+.custom-select {
+  position: relative;
+  width: 100%;
+  max-width: 220px;
+}
+
+/* ✅ Apply to both Mode and Pattern Selection */
+.custom-select select,
+#patternType {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: bold;
+  border: 1px solid #2d528f;
+  border-radius: 5px;
+  background-color: #f4f4f4;
+  color: #222;
+  appearance: none; /* ✅ Hide default dropdown icon */
+  cursor: pointer;
+}
+
+/* ✅ Custom dropdown arrow */
+.custom-select::after {
+  content: "▼";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: #3b75cb;
+  pointer-events: none;
+}
+
+/* ✅ Hover & Focus Effects */
+.custom-select select:hover,
+#patternType:hover {
+  background-color: #eaeaea;
+}
+
+.custom-select select:focus,
+#patternType:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.drawing-tools {
+  display: flex;
+  gap: 10px;
+}
+
+.mode-btn {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  border: none;
+  background-color: #ddd;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background 0.3s;
+}
+
+.mode-btn:hover {
+  background-color: #ccc;
+}
+
+.mode-btn.active {
+  background-color: #999;
+}
+
+li[onclick] {
+  cursor: pointer;
+  transition: background 0.2s ease-in-out;
+}
+
+li[onclick]:hover {
+  background: rgba(0, 122, 255, 0.2); /* Light Apple blue tint */
+}
+
+ul {
+  list-style: none;
+  padding-left: 12px; /* Indents list items slightly */
+  margin: 0;
+}
+
+li {
+  margin-bottom: 4px; /* Adds slight spacing between items */
+}

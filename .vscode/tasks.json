@@ -1,0 +1,16 @@
+cd ..{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Full AI Trading Bot",
+            "type": "shell",
+            "command": "./start.sh",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "Activates venv, starts Node server, and prompts Python AI run."
+        }
+    ]
+}
