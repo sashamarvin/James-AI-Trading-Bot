@@ -385,9 +385,32 @@ def append_sell(position_data, action, price, reason):
 
 ################################# NEW BUY FUNCTIONS ################################
 
-
+printParameters = False
 
 def check_buy_1(pattern_data, position_data, position_size, max_risk, current_day_index, fullPosition, tick_price, log_entry):
+    
+    if printParameters:
+        
+        print("\n📝 --- Parameters Passed to check_buy_1 ---")
+        
+        print(f"\n📌 Pattern Points:")
+        for idx, point in enumerate(pattern_data["patternPoints"]):
+            print(f"  {idx}: {point}")
+        
+        print("\n📌 Last 3 Entries of Daily Data:")
+        for row in pattern_data["dailyData"][-3:]:
+            print(f"  {row}")
+        
+        print(f"\n📌 Position Data: {position_data}")
+        print(f"📌 Position Size: {position_size}")
+        print(f"📌 Max Risk: {max_risk}")
+        print(f"📌 Current Day Index: {current_day_index}")
+        print(f"📌 Full Position: {fullPosition}")
+        print(f"📌 Tick Price: {tick_price}")
+        print(f"📌 Log Entry: {log_entry}")
+        
+        print("\n📝 --- End of Parameters ---\n")
+    
     """
     Executes the pilot 0.25 buy:
     - Only if price pierces the slanted high trendline
@@ -403,16 +426,35 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
     daily_data = pattern_data["dailyData"]
 
     # 1. Detect recent peaks and troughs (for stop and breakout type)
-    contraction_range = pattern_data["patternPoints"][1:-1]
-    start_time = contraction_range[0]["time"]
-    end_time = contraction_range[-1]["time"]
-
-    
+    start_time = pattern_data["patternPoints"][1]["time"]
+    end_time = pattern_data["patternPoints"][2]["time"]
+    ## end_time = daily_data[-1]["time"]  # Last available entry
     
     start_idx = next(i for i, d in enumerate(daily_data) if d["time"] == start_time)
+    
+    if printParameters:
+        print(f"🔍 Looking for end_time {end_time} in daily_data")
+        print(f"🔎 Available dates in daily_data: {[d['time'] for d in daily_data]}")
+    
+
     end_idx = next(i for i, d in enumerate(daily_data) if d["time"] == end_time)
 
-    points = find_lambda_hybrid(daily_data, start_idx, current_day_index - 1)
+    points = find_lambda_hybrid(daily_data, start_idx, end_idx)
+    
+    if printParameters:
+        print("\n🔎 --- DEBUG INFO ---")
+        print(f"🕒 Start Time: {start_time}")
+        print(f"🕒 End Time: {end_time}")
+        print(f"🔎 Start Index: {start_idx}")
+        print(f"🔎 End Index: {end_idx}")
+        print(f"📌 Points Found: {points}")
+        print(f"📈 Current Day Index: {current_day_index}")
+        print("🔄 Full Daily Data:")
+        for entry in daily_data[-5:]:
+            print(f"   {entry}")
+        print("\n📝 --- END OF DEBUG INFO ---\n")
+        
+    
 
     # Detect stop from most recent low
     recent_low = next((pt for pt in reversed(points) if pt["type"] == "low"), None)
@@ -422,6 +464,13 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
         print(f"⚠️ No swing low found. Using fallback stop at {stop_price} ({fallback_low['time']})")
     else:
         stop_price = recent_low["value"]
+    
+    if printParameters:    
+        print(f"   • Stop Price: {stop_price}")
+        print(f"   • Recent Low Point: {recent_low}")
+        print(f"   • Fallback Low (if used): {fallback_low if not recent_low else 'N/A'}")
+        input("⏸ Press Enter to continue")
+        
 
     # 2. Decide breakout logic based on swing high structure
     swing_highs = [pt["value"] for pt in points if pt["type"] == "high"]
@@ -433,6 +482,13 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
         if (abs(highest - lowest) / highest) <= 0.015:  # Flat base within 1.5%
             flat_base = True
             print("🟦 Flat base detected — skipping trendline logic.")
+            
+    if printParameters:
+        print(f"   • Swing Highs: {swing_highs}")
+        print(f"   • Highest High: {highest if len(swing_highs) >= 2 else 'N/A'}")
+        print(f"   • Lowest High: {lowest if len(swing_highs) >= 2 else 'N/A'}")
+        print(f"   • Flat Base Detected: {flat_base}")
+        input("⏸ Press Enter to continue")
 
     # 3. Either flat base logic or downtrend breakout logic
     if flat_base:
@@ -445,13 +501,25 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
         breakout_line = max(trendlines, key=lambda line: sum(p["value"] for p in line) / len(line))
         breakout_points = breakout_line
         slanted = calculate_slanted(breakout_points, daily_data)
+        
+        if printParameters:
+            print(f"   • Trendlines Detected: {len(trendlines)}")
+            print(f"   • Selected Breakout Line: {breakout_line}")
+            print(f"   • Slanted: {slanted}")
+            input("⏸ Press Enter to continue")
+        
         if not slanted:
-            print("❌ Resistance line not slanted downward — skipping breakout.")
-            return False
+            print("❌ Resistance line not slanted downward — handing off breakout to runCheckBuy2.")
+            return "runCheckBuy2"
 
         # is_breakout_today is where tick_price is compared to last breakout point detection by the fancy functions
         
         threshold = is_breakout_today(daily_data, breakout_points, current_day_index, tick_price)
+        
+        if printParameters:
+            print(f"   • Breakout Threshold Detected: {threshold}")
+            print(f"   • Current Tick Price: {tick_price}")
+        
         if not threshold:
             # print("❌ No breakout detected — no pilot buy.")
             return False
@@ -461,6 +529,14 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
     # 6. Confirm risk with special rule for flat bases
     max_risk_allowed = 0.07 if flat_base else max_risk
     risk = (threshold - stop_price) / threshold
+    
+    if printParameters:
+        print(f"   • Threshold: {threshold}")
+        print(f"   • Stop Price: {stop_price}")
+        print(f"   • Risk Calculated: {risk}")
+        print(f"   • Max Allowed Risk: {max_risk_allowed}")
+        input("⏸ Press Enter to continue")
+    
     if risk > max_risk_allowed:
         print(f"❌ No trade executed ⚠️ Risk {round(risk*100, 2)}% exceeds max allowed {round(max_risk_allowed*100, 2)}%.")
         return False
@@ -468,7 +544,13 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
     # 7. Execute pilot position
     buy_price = round(threshold + 0.01, 2)
     
-    pattern_data["last_breakout"] = threshold  # ✅ Store breakout level for Buy 2+ filtering   
+    pattern_data["last_breakout"] = threshold  # ✅ Store breakout level for Buy 2+ filtering  
+    
+    if printParameters:
+        print(f"   • Buy Price: {buy_price}")
+        print(f"   • Breakout Day: {breakout_day}")
+        print(f"   • Last Breakout Updated: {threshold}") 
+        input("⏸ Press Enter to continue")
     
     log_buy_event("0.25", buy_price, stop_price, risk, breakout_day, position_data, fullPosition)
     
@@ -486,7 +568,9 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
     position_data["stop"] = stop_price
     
     get_position_status(position_data, fullPosition)
-
+    
+    if printParameters:
+        input("⏸ Press Enter to continue to the next trading session...")
 
     return True
 
@@ -654,11 +738,10 @@ last_prompt_day = None  # 🧊 Tracks last day prompt shown in Cool Off Mode
 
 position_sequence = [0.25, 0.5, 0.25]
 
-def check_buy(pattern_data, position_data, max_risk, current_day_index, full_position, tick_price, log_entry, daily_state):
-    """
-    Main entry checker, routed by how many buys have been made so far.
-    """
 
+
+def check_buy(pattern_data, position_data, max_risk, current_day_index, full_position, tick_price, log_entry, daily_state):
+    
     global cool_off_mode, last_prompt_day
 
     # --- COOL OFF MODE CHECK ---
@@ -788,6 +871,7 @@ def check_intraday_exit_logic(tick, intraday_low, intraday_high, prev_day_high_l
 
 
 def check_sell(pattern_data, position_data, current_day_index, full_position, position_history, tick, intraday_low, intraday_high, log_entry):
+    
     """
     Daily sell logic (day-by-day version of sell_on_strength).
     Evaluates stop hit, stall after parabolic, and profit-taking logic.
