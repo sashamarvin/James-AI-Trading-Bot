@@ -1,3 +1,5 @@
+from ib_insync import *  # type: ignore
+
 import mysql.connector  # type: ignore
 import json
 import sys
@@ -106,11 +108,36 @@ IBdata = True
 ### WORKING ON MONITOR STOCK LIVE   
 
 
-testMode = False        
-        
+
+liveMode = False ##### IMPORTANT !!! alter this flag only to work in testing mode with no live GW connection (except to fetch daily data)
+
 def monitor_stock_live(pattern_data, ticker):
-    # Get the start date directly from pattern_data
-    start_date = pattern_data["patternPoints"][2]["time"]
+    if liveMode:
+        # ⏰ Set the live mode to start today (NYSE time) and roll forward 30 days for end date
+        nyc_tz = pytz.timezone('America/New_York')
+        
+        # Set start date to today in NY timezone
+        start_date = datetime.now(nyc_tz).strftime("%Y-%m-%d")
+        pattern_data["patternPoints"][2]["time"] = start_date
+        
+        # Set the simulation end date to 30 days in the future (NY timezone)
+        future_end = (datetime.now(nyc_tz) + timedelta(days=30)).strftime("%Y-%m-%d")
+        pattern_data["patternPoints"][3]["time"] = future_end
+        
+        # 🔄 Parse the end date into a datetime object for comparisons
+        sim_end_date = datetime.strptime(future_end, "%Y-%m-%d")
+        
+        # ✅ CONNECT TO IB GW HERE
+        print("🔗 Connecting to IB Gateway for live data...")
+        ib = IB() # type: ignore
+        ib.connect('127.0.0.1', 4002, clientId=1)
+        
+    else: 
+        # Get the start date directly from pattern_data
+        start_date = pattern_data["patternPoints"][2]["time"]
+        
+        # 📝 Parse the simulation end date from pattern_data
+        sim_end_date = datetime.strptime(pattern_data["patternPoints"][3]["time"], "%Y-%m-%d")
 
     # Get the last closed trading day and if market is currently open
     last_closed_day, market_is_open, now = get_last_closed_trading_day(simulate_date=start_date)
@@ -128,8 +155,7 @@ def monitor_stock_live(pattern_data, ticker):
     daily_log = []
     position_history = []
     
-    # 🛑 Get the end date from pattern_data
-    sim_end_date = datetime.strptime(pattern_data["patternPoints"][3]["time"], "%Y-%m-%d")
+    
     
     while True:
         
@@ -141,28 +167,13 @@ def monitor_stock_live(pattern_data, ticker):
             summarize_trading_results(position_history, fullPosition)
             return
         
-        # 1️⃣ Fetch Daily Data 
-        fetch_daily_ohlcv_100days(ticker, live_session_day, save_path=f"../data/{ticker}/{ticker}_{live_session_day}.csv")
+        # 1️⃣ Fetch Daily Data
+        if liveMode:
+            print("🌐 Fetching daily data from IB Gateway...") 
+            fetch_daily_ohlcv_100days(ticker, live_session_day, save_path=f"../data/{ticker}/{ticker}_{live_session_day}.csv")
         daily_data = load_daily_history_for_day(ticker, last_closed_day)
         pattern_data["dailyData"] = daily_data
         pattern_data["patternPoints"][2]["time"] = last_closed_day
-                
-        # 🛑 Pause and wait for input before streaming
-        while True:
-            key = input("➡️ Press Enter for next day, Q to quit, or P to toggle print parameters: ").strip().lower()
-            
-            if key == "q":
-                print("🚪 Exiting real-time monitoring.")
-                summarize_trading_results(position_history, fullPosition)
-                return
-            elif key == "p":
-                import buy_logic
-                buy_logic.printParameters = not buy_logic.printParameters
-                status = "ON" if buy_logic.printParameters else "OFF"
-                print(f"🖨️ Print Parameters now {status}")
-            else:
-                print("➡️ Continuing to the next trading session...")
-                break
 
         # 2️⃣ Initialize Intraday Variables
         
@@ -222,7 +233,11 @@ def monitor_stock_live(pattern_data, ticker):
             )
 
         # 🔄 Stream Ticks for the Day
-        get_GW_realtime_data_TEST_market_closed(ticker, live_session_day, handle_realtime_tick, live_simulated=True)
+        if liveMode:
+            get_GW_realtime_data(ticker, handle_realtime_tick)
+        else:
+            get_GW_realtime_data_TEST_market_closed(ticker, live_session_day, handle_realtime_tick, live_simulated=True)
+            
         
         # 🗓️ Log entry and append to daily log
         daily_log.append(log_entry)
@@ -237,250 +252,11 @@ def monitor_stock_live(pattern_data, ticker):
         ## create_snapshot(ticker, pattern_data, position_data, daily_state, log_entry)
         ## save_trade_log(ticker, log_entry)
     
-
-
-
-
-
-
-
-
-now_live_simulated = True
- 
-def monitor_stock_live_simulated(pattern_data, daily_data, position_data, ticker, sim_start, sim_end, hybrid_start, realtime=True, IBdata=False):
-    """
-    Walk through each real trading day using the official NYSE calendar.
-    If 'realtime' is True and 'IBdata' is False, data is streamed from local 1-min CSV.
-    If 'realtime' is True and 'IBdata' is True, data is streamed from Interactive Brokers Gateway.
-    """
-    daily_log = []
-    position_history = []
-    daily_state = {}
-
-    sim_start_date = datetime.strptime(sim_start, "%Y-%m-%d")
-    sim_end_date = datetime.strptime(sim_end, "%Y-%m-%d")
-
-    trading_days = get_trading_days(sim_start_date, sim_end_date)
-
-    input("⏸ Press Enter to start monitoring from this day...\n")
-
-    for current_date in trading_days:
-        current_day = current_date.strftime("%Y-%m-%d")
-        
-        log_entry = {
-            "date": current_day,
-            "trend": None,
-            "breakout_level": None,
-            "tick_prices": [],
-            "buy_events": [],
-            "sell_events": [],
-            "events": [],
-            "lambda_points": [],
-            "max_size_warning": False
-        }
-
-        # ⏪ Reload daily data
-        daily_data = load_daily_history_for_day(ticker, current_day)
-        if not daily_data:
-            print(f"⚠️ Skipping {current_day} due to missing daily file.")
-            continue
-
-        pattern_data["dailyData"] = daily_data
-
-        # 🗓️ Get the next NYSE trading day for 1-min data
-        next_session_day = get_next_trading_day(current_day)
-
-        intraday_low = float("inf")
-        intraday_high = float("-inf")
-        current_day_index = len(daily_data) - 1  
-
-        # 📊 Detect trend before processing ticks
-        trend = detect_trend_mode(daily_data[:current_day_index])
-        log_entry["trend"] = trend
-            
-        trend_note = f" --> Trending ::::: {trend}"
-        print(f"\n📅 Trend up to the last closed session: {current_day}{trend_note}")
-
-
-        # 🔄 Callback Handler for Real-Time Data
-        def handle_realtime_tick(price_data):
-            """
-            Handle each tick data streamed from the CSV file in real-time.
-            """
-            nonlocal intraday_low, intraday_high, current_day_index
-            
-            tick_price = price_data["price"]
-            tick_time = price_data["time"]
-            
-            # 🗓️ Update intraday low and high
-            intraday_low = min(intraday_low, tick_price)
-            intraday_high = max(intraday_high, tick_price)
-
-            log_entry["tick_prices"].append(round(tick_price, 2))
-
-            # 🟢 Execute Buy Logic
-            check_buy(
-                pattern_data,
-                position_data,
-                max_risk=0.04,
-                current_day_index=current_day_index,
-                full_position=fullPosition,
-                tick_price=tick_price,
-                log_entry=log_entry,
-                daily_state=daily_state
-            )
-
-            # 🔴 Execute Sell Logic
-            check_sell(
-                pattern_data,
-                position_data,
-                current_day_index,
-                fullPosition,
-                position_history,
-                {"time": tick_time, "price": tick_price},
-                intraday_low,
-                intraday_high,
-                log_entry=log_entry
-            )
-
-        get_GW_realtime_data_TEST_market_closed(ticker, next_session_day, handle_realtime_tick, live_simulated=True)
-
-        
-
-        # 🛑 Pause for log checking
-        key = input("➡️ Press Enter for next day, Q to quit, or P to toggle print parameters: ").strip().lower()
-
-        if key == "q":
-            print("🚪 Exiting day-by-day simulation.")
-            break
-        elif key == "p":
-            # Toggle printParameters in buy_logic
-            import buy_logic
-            buy_logic.printParameters = not buy_logic.printParameters
-            status = "ON" if buy_logic.printParameters else "OFF"
-            print(f"🖨️ Print Parameters now {status}")
-
-    print("✅ End of monitoring.")
-    summarize_trading_results(position_history, fullPosition)       
-
-
-
     
-
-def monitor_stock_simulated(pattern_data, daily_data, position_data, ticker, sim_start, sim_end, hybrid_start, realtime=True, IBdata=False):
-    """
-    Walk through each real trading day using the official NYSE calendar.
-    If 'realtime' is True and 'IBdata' is False, data is streamed from local 1-min CSV.
-    If 'realtime' is True and 'IBdata' is True, data is streamed from Interactive Brokers Gateway.
-    """
-    daily_log = []
-    position_history = []
-    daily_state = {}
-
-    sim_start_date = datetime.strptime(sim_start, "%Y-%m-%d")
-    sim_end_date = datetime.strptime(sim_end, "%Y-%m-%d")
-
-    trading_days = get_trading_days(sim_start_date, sim_end_date)
-
-    print(f"🕵️ Monitoring begins at: {sim_start}")
-    input("⏸ Press Enter to start monitoring from this day...\n")
-
-    for current_date in trading_days:
-        current_day = current_date.strftime("%Y-%m-%d")
-        
-        log_entry = {
-            "date": current_day,
-            "trend": None,
-            "breakout_level": None,
-            "tick_prices": [],
-            "buy_events": [],
-            "sell_events": [],
-            "events": [],
-            "lambda_points": [],
-            "max_size_warning": False
-        }
-
-        # ⏪ Reload daily data
-        daily_data = load_daily_history_for_day(ticker, current_day)
-        if not daily_data:
-            print(f"⚠️ Skipping {current_day} due to missing daily file.")
-            continue
-
-        pattern_data["dailyData"] = daily_data
-
-        # 🗓️ Get the next NYSE trading day for 1-min data
-        next_session_day = get_next_trading_day(current_day)
-        print(f"🔄 Loading 1-min ticks for the next session: {next_session_day}")
-
-        # 📂 Load the 1-min data for the next open session
-        if realtime and IBdata == False:
-            ticks_today = load_ticks_for_day_1min(ticker, next_session_day)
-        else:
-            ticks_today = load_ticks_for_day_1min(ticker, next_session_day)
-
-        if not ticks_today:
-            print(f"⚠️ No tick data available for {current_day}")
-            continue
-
-        intraday_low = float("inf")
-        intraday_high = float("-inf")
-        current_day_index = len(daily_data) - 1  
-
-        # 📊 Detect trend before processing ticks
-        trend = detect_trend_mode(daily_data[:current_day_index])
-        log_entry["trend"] = trend
-            
-        trend_note = f" --> Trending ::::: {trend}"
-        print(f"\n📅 Trend up to the last closed session: {current_day}{trend_note}")
-
-
-        for tick in ticks_today:
-            tick_price = tick["price"]
-            intraday_low = min(intraday_low, tick_price)
-            intraday_high = max(intraday_high, tick_price)
-
-            log_entry["tick_prices"].append(round(tick_price, 2))
-
-
-            # 🟢 Execute Buy Logic
-            check_buy(
-                pattern_data,
-                position_data,
-                max_risk=0.04,
-                current_day_index=current_day_index,
-                full_position=fullPosition,
-                tick_price=tick_price,
-                log_entry=log_entry,
-                daily_state=daily_state
-            )
-
-            # 🔴 Execute Sell Logic
-            check_sell(
-                pattern_data,
-                position_data,
-                current_day_index,
-                fullPosition,
-                position_history,
-                tick,
-                intraday_low,
-                intraday_high,
-                log_entry=log_entry
-            )
-
-            # ⏳ If realtime, simulate 200ms delay
-            if realtime and IBdata == False:
-                time.sleep(10)
-
-        
-
-        key = input("➡️ Press Enter for next day, or Q to quit: ").strip().lower()
-        if key == "q":
-            print("🚪 Exiting day-by-day simulation.")
-            break
-
-    print("✅ End of monitoring.")
-    summarize_trading_results(position_history, fullPosition)
-
+    
+    
+    
+    
 
 def load_ticks_for_day_1min(ticker, date_str):
     """
@@ -510,49 +286,27 @@ def find_previous_valid_daily_file(ticker, sim_start_str):
 
 
 
-if len(sys.argv) == 5:
-    # Simulation Mode
-    ticker = sys.argv[1]
-    sim_start = sys.argv[2]
-    sim_end = sys.argv[3]
-    hybrid_start = sys.argv[4]
-    print(f"🔵 Running in Simulation Mode for {ticker}")
-    
-    previous_day, daily_data = find_previous_valid_daily_file(ticker, sim_start)
-
-    pattern_data = {
-        "dailyData": daily_data,
-        "patternPoints": [
-            {"time": "0000-00-00"},
-            {"time": hybrid_start[:10]},
-            {"time": sim_start[:10]},
-            {"time": sim_end[:10]},
-        ]
-    }
-    if now_live_simulated:
-        monitor_stock_live_simulated(pattern_data, daily_data, position_data, ticker, sim_start, sim_end, hybrid_start, realtime=True, IBdata=False)
-    else:
-        monitor_stock_simulated(pattern_data, daily_data, position_data, ticker, sim_start, sim_end, hybrid_start, realtime=True, IBdata=False)
-
-elif len(sys.argv) == 3:
+if len(sys.argv) == 3:
     # Real-Time Mode
     ticker = sys.argv[1]
     hybrid_start = sys.argv[2]
     
-    # 🔄 Define the simulation start and end for now
+    # 🔄 Define the simulation start and end for the simulation mode
     sim_start = "2024-08-19"
-    sim_end = "2024-08-27"
+    sim_end = "2024-11-11"
 
     print(f"🟢 Running in Real-Time Simulation Mode for {ticker}")
 
     pattern_data = {
         "dailyData": [],
         "patternPoints": [
-            {"time": "0000-00-00"}, #0
-            {"time": hybrid_start[:10]}, #1
-            {"time": sim_start[:10]}, #2
-            {"time": sim_end[:10]}, #3
-        ]
+            {"time": "0000-00-00"},  # 0
+            {"time": hybrid_start[:10]},  # 1
+            {"time": sim_start[:10]},     # 2
+            {"time": sim_end[:10]},       # 3
+        ],
+        "liveMode": liveMode,
+        "ticker": ticker
     }
 
     # Launch the live monitor with pattern_data already defined
@@ -560,6 +314,5 @@ elif len(sys.argv) == 3:
 
 else:
     print("❌ Invalid number of arguments. Use either:\n"
-          "Simulation Mode → python ai_bot.py <TICKER> <SIM_START> <SIM_END> <HYBRID_START>\n"
           "Real-Time Mode → python ai_bot.py <TICKER> <HYBRID_START>")
     exit()

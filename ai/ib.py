@@ -133,50 +133,69 @@ def get_GW_realtime_data(ticker, monitor_callback):
         ticker (str): The stock ticker symbol (e.g., "AAPL").
         monitor_callback (func): The callback function to execute on each new tick.
     """
-    ib = IB() # type: ignore
-    ib.connect('127.0.0.1', 4002, clientId=4)
+    ## ib = IB() # type: ignore
+    ## ib.connect('127.0.0.1', 4002, clientId=4)
 
     # Define the contract for the stock
     contract = Stock(ticker, 'SMART', 'USD') # type: ignore
-    ib.qualifyContracts(contract)
+    ib.qualifyContracts(contract) # type: ignore
 
     # Live ticker storage
     live_ticks = []
 
     # Define the callback for live tick updates
-    def on_tick(tick):
-        if tick.field == 4:  # Last price field in IB API
+    def on_tick(tick_set):
+        """
+        Callback for real-time tick updates from IB Gateway.
+
+        Args:
+            tick_set (set): A set containing a single Ticker object.
+        """
+        # ➡️ Unwrap the set safely, since it contains only one Ticker object
+        try:
+            tick = next(iter(tick_set))
+        except StopIteration:
+            print("⚠️ Tick set was empty, skipping update.")
+            return
+
+        # ✅ Check if the Ticker object has a 'last' price update
+        if hasattr(tick, 'last') and tick.last is not None:
             price_data = {
                 "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "price": tick.price
+                "price": tick.last
             }
             live_ticks.append(price_data)
-            print(f"💡 Tick: {price_data}")
 
-            # Send the tick to the monitor for buy/sell checks
+            # 🔄 Update the console on the same line
+            sys.stdout.write(f"\r💡 Latest Tick | Time: {price_data['time']} | Price: ${price_data['price']:.2f}")
+            sys.stdout.flush()
+
+            # ➡️ Send the tick to the monitor for buy/sell checks
             monitor_callback(price_data)
+        else:
+            print(f"⚠️ No valid last price in tick: {tick}")
 
     # Subscribe to live market data
-    ib.reqMktData(contract, "", False, False)
-    ib.pendingTickersEvent += on_tick
+    ib.reqMktData(contract, "", False, False) # type: ignore
+    ib.pendingTickersEvent += on_tick # type: ignore
 
     print(f"🚀 Real-time feed started for {ticker}")
     
     try:
-        ib.run()
+        ib.run() # type: ignore
     except KeyboardInterrupt:
-        print("🔌 Real-time feed stopped.")
-        ib.disconnect()
+        print("\n🔌 Real-time feed stopped.")
+        ib.disconnect() # type: ignore
 
 
 def fetch_daily_ohlcv_100days(ticker, end_date, save_path):
-    ib = IB() # type: ignore
-    ib.connect('127.0.0.1', 4002, clientId=1)
+    ## ib = IB() # type: ignore
+    ## ib.connect('127.0.0.1', 4002, clientId=1)
 
     contract = Stock(ticker, 'SMART', 'USD') # type: ignore
     end_dt = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y%m%d %H:%M:%S')
 
-    bars = ib.reqHistoricalData(
+    bars = ib.reqHistoricalData( # type: ignore
         contract,
         endDateTime=end_dt,
         durationStr='6 M',
@@ -186,7 +205,7 @@ def fetch_daily_ohlcv_100days(ticker, end_date, save_path):
         formatDate=1
     )
 
-    ib.disconnect()
+    ib.disconnect() # type: ignore
     df = util.df(bars) # type: ignore
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
