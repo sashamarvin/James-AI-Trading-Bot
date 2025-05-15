@@ -426,6 +426,7 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
     # 4. Execute if risk < max_risk
     
     daily_data = pattern_data["dailyData"]
+    ib = pattern_data['ib']
 
     # 1. Detect recent peaks and troughs (for stop and breakout type)
     start_time = pattern_data["patternPoints"][1]["time"]
@@ -563,7 +564,7 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
         ticker = pattern_data["ticker"]
         stop_price -= 0.01
         logging.info(f"🛠️ Executing Live Buy Order: {ticker} - 0.50 position size | Shares: {shares} | Stop: {stop_price}")
-        place_order(ticker, "BUY", shares, order_type='MKT', stop_loss=stop_price)
+        place_order(ib, ticker, "BUY", shares, order_type='MKT', stop_loss=stop_price)
     else:
         logging.info(f"📝 Simulation Mode: Buy logged, but not executed for real")
         stop_price -= 0.01
@@ -596,6 +597,7 @@ def check_buy_2(pattern_data, position_data, position_size, max_risk, require_ac
     Mirrors buy_breakout_confirmation() but scoped to just today.
     """
     daily_data = pattern_data["dailyData"]
+    ib = pattern_data['ib']
     pattern_points = pattern_data["patternPoints"]
         
 
@@ -671,7 +673,7 @@ def check_buy_2(pattern_data, position_data, position_size, max_risk, require_ac
             ticker = pattern_data["ticker"]
             stop_price -= 0.01
             logging.info(f"🛠️ Executing Live Buy Order: {ticker} - 0.50 position size | Shares: {shares} | Stop: {stop_price}")
-            place_order(ticker, "BUY", shares, order_type='MKT', stop_loss=stop_price)
+            place_order(ib, ticker, "BUY", shares, order_type='MKT', stop_loss=stop_price)
         else:
             logging.info(f"📝 Simulation Mode: Buy logged, but not executed for real")
             stop_price -= 0.01
@@ -708,6 +710,7 @@ def check_buy_3(pattern_data, position_data, position_size, allow_pivot=True, fo
         return False
 
     daily_data = pattern_data["dailyData"]
+    ib = pattern_data['ib']
     today = daily_data[current_day_index]
     
     # ⏳ Enforce follow-through: must be after last buy day
@@ -741,7 +744,7 @@ def check_buy_3(pattern_data, position_data, position_size, allow_pivot=True, fo
             ticker = pattern_data["ticker"]
             stop_price -= 0.01
             logging.info(f"🛠️ Executing Live Buy Order: {ticker} - 0.25 position size | Shares: {shares} | Stop: {stop_price}")
-            place_order(ticker, "BUY", shares, order_type='MKT', stop_loss=stop_price)
+            place_order(ib, ticker, "BUY", shares, order_type='MKT', stop_loss=stop_price)
         else:
             logging.info(f"📝 Simulation Mode: Buy logged, but not executed for real")
             stop_price -= 0.01
@@ -913,6 +916,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
     Evaluates stop hit, stall after parabolic, and profit-taking logic.
     """
     daily_data = pattern_data["dailyData"]
+    ib = pattern_data['ib']
 
     if len(daily_data) < 2 or current_day_index is None:
         return False
@@ -963,7 +967,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
             if pattern_data["liveMode"]:
                 ticker = pattern_data["ticker"]
                 logging.info(f"🛠️ Executing Live Sell Order: {ticker} - FULL position | Shares: {shares}")
-                place_order(ticker, "SELL", shares, order_type='MKT')
+                place_order(ib, ticker, "SELL", shares, order_type='MKT')
             else:
                 logging.info(f"📝 Simulation Mode: Sell logged, but not executed for real")
             
@@ -998,7 +1002,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
                     if pattern_data["liveMode"]:
                         ticker = pattern_data["ticker"]
                         logging.info(f"🛠️ Executing Live Sell Order: {ticker} - FULL position | Shares: {shares}")
-                        place_order(ticker, "SELL", shares, order_type='MKT')
+                        place_order(ib, ticker, "SELL", shares, order_type='MKT')
                     else:
                         logging.info(f"📝 Simulation Mode: Sell logged, but not executed for real")
                     
@@ -1018,7 +1022,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
                     if pattern_data["liveMode"]:
                         ticker = pattern_data["ticker"]
                         logging.info(f"🛠️ Executing Live Sell Order: {ticker} - FULL position | Shares: {shares}")
-                        place_order(ticker, "SELL", shares, order_type='MKT')
+                        place_order(ib, ticker, "SELL", shares, order_type='MKT')
                     else:
                         logging.info(f"📝 Simulation Mode: Sell logged, but not executed for real")
                     
@@ -1034,7 +1038,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
                     if pattern_data["liveMode"]:
                         ticker = pattern_data["ticker"]
                         logging.info(f"🛠️ Executing Live Sell Order: {ticker} - FULL position | Shares: {shares}")
-                        place_order(ticker, "SELL", shares, order_type='MKT')
+                        place_order(ib, ticker, "SELL", shares, order_type='MKT')
                     else:
                         logging.info(f"📝 Simulation Mode: Sell logged, but not executed for real")
                     
@@ -1051,7 +1055,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
             if pattern_data["liveMode"]:
                 ticker = pattern_data["ticker"]
                 logging.info(f"🛠️ Executing Live Sell Order: {ticker} - FULL position | Shares: {shares}")
-                place_order(ticker, "SELL", shares, order_type='MKT')
+                place_order(ib, ticker, "SELL", shares, order_type='MKT')
             else:
                 logging.info(f"📝 Simulation Mode: Sell logged, but not executed for real")
                     
@@ -1069,7 +1073,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
             if pattern_data["liveMode"]:
                 ticker = pattern_data["ticker"]
                 logging.info(f"🛠️ Executing Live Sell Order: {ticker} - FULL position | Shares: {shares}")
-                place_order(ticker, "SELL", shares, order_type='MKT')
+                place_order(ib, ticker, "SELL", shares, order_type='MKT')
             else:
                 logging.info(f"📝 Simulation Mode: Sell logged, but not executed for real")
             

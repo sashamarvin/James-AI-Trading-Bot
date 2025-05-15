@@ -19,8 +19,17 @@ from snapshot import create_snapshot, save_trade_log # type: ignore
 
 from buy_logic import printParameters
 
+import exchange_calendars as ecals
+from datetime import date
 
+import psutil
 
+def clear_stale_sessions(port=4002):
+    """ Cleans up old IB Gateway client connections. """
+    for process in psutil.process_iter(['pid', 'name', 'cmdline']):
+        if 'python' in process.info['name'] and f'{port}' in str(process.info['cmdline']):
+            print(f"Killing stale client process: {process.info['pid']}")
+            process.kill()
 
 
 def load_ticks_for_day(ticker, date_str):
@@ -70,35 +79,9 @@ position_data = {
     "avg_entry": None,
 }
 
-import exchange_calendars as ecals
-from datetime import date
-
-# NYSE calendar loaded once
-xnas = ecals.get_calendar("XNYS")
-
-def get_trading_days(start_date, end_date):
-    """
-    Returns a list of valid trading session dates from start to end (inclusive).
-    """
-    return xnas.sessions_in_range(start_date, end_date)
-
-def is_trading_day(some_date):
-    """
-    Returns True if the date is a valid NYSE trading session.
-    """
-    return xnas.is_session(some_date)
 
 
 
-
-
-# Hardcoded flags
-realtime = True
-IBdata = True
-
-        
-        
-        
         
         
 ### WORKING ON MONITOR STOCK LIVE        
@@ -109,7 +92,7 @@ IBdata = True
 
 
 
-liveMode = False ##### IMPORTANT !!! alter this flag only to work in testing mode with no live GW connection (except to fetch daily data)
+liveMode = False ##### IMPORTANT !!! this is now set in if len(sys.argv) == 4 OR 5 down at the end
 
 def monitor_stock_live(pattern_data, ticker):
     if liveMode:
@@ -127,10 +110,16 @@ def monitor_stock_live(pattern_data, ticker):
         # 🔄 Parse the end date into a datetime object for comparisons
         sim_end_date = datetime.strptime(future_end, "%Y-%m-%d")
         
+        # Clear stale sessions
+        clear_stale_sessions()
+        
         # ✅ CONNECT TO IB GW HERE
-        print("🔗 Connecting to IB Gateway for live data...")
+        
+        clientId = pattern_data["clientId"]
+        print(f"🔗 Connecting to IB Gateway for live data with Client ID = {clientId}")
         ib = IB() # type: ignore
-        ib.connect('127.0.0.1', 4002, clientId=1)
+        pattern_data["ib"] = ib
+        ib.connect('127.0.0.1', 4002, clientId)
         
     else: 
         # Get the start date directly from pattern_data
@@ -170,7 +159,7 @@ def monitor_stock_live(pattern_data, ticker):
         # 1️⃣ Fetch Daily Data
         if liveMode:
             print("🌐 Fetching daily data from IB Gateway...") 
-            fetch_daily_ohlcv_100days(ticker, live_session_day, save_path=f"../data/{ticker}/{ticker}_{live_session_day}.csv")
+            fetch_daily_ohlcv_100days(ib, ticker, live_session_day, save_path=f"../data/{ticker}/{ticker}_{live_session_day}.csv")
         daily_data = load_daily_history_for_day(ticker, last_closed_day)
         pattern_data["dailyData"] = daily_data
         pattern_data["patternPoints"][2]["time"] = last_closed_day
@@ -234,7 +223,7 @@ def monitor_stock_live(pattern_data, ticker):
 
         # 🔄 Stream Ticks for the Day
         if liveMode:
-            get_GW_realtime_data(ticker, handle_realtime_tick)
+            get_GW_realtime_data(ib, ticker, handle_realtime_tick)
         else:
             get_GW_realtime_data_TEST_market_closed(ticker, live_session_day, handle_realtime_tick, live_simulated=True)
             
@@ -254,65 +243,39 @@ def monitor_stock_live(pattern_data, ticker):
     
     
     
-    
-    
-    
-
-def load_ticks_for_day_1min(ticker, date_str):
-    """
-    Load intraday 1-min ticks from the IB CSV for a specific day.
-    Returns a list of dicts with 'time' and 'price'.
-    """
-    filename = f"../data/{ticker}/{ticker}_{date_str}_1min.csv"
-    if os.path.exists(filename):
-        df = pd.read_csv(filename, parse_dates=['date'])
-        print(f"🔄 Loaded {len(df)} 1-min ticks for {date_str}")
-        return [{"time": row["date"].strftime("%Y-%m-%d %H:%M:%S"), "price": row["close"]} for _, row in df.iterrows()]
-    else:
-        print(f"⚠️ No intraday data for {date_str}")
-        return []
-
-
-def find_previous_valid_daily_file(ticker, sim_start_str):
-    date = datetime.strptime(sim_start_str, "%Y-%m-%d")
-    for _ in range(10):  # Check up to 10 days back
-        date -= timedelta(days=1)
-        test_date = date.strftime("%Y-%m-%d")
-        data = load_daily_history_for_day(ticker, test_date)
-        if data:
-            return test_date, data
-    raise ValueError(f"No valid daily file found before {sim_start_str}")
 
 
 
 
-if len(sys.argv) == 3:
-    # Real-Time Mode
-    ticker = sys.argv[1]
-    hybrid_start = sys.argv[2]
-    
-    # 🔄 Define the simulation start and end for the simulation mode
-    sim_start = "2024-08-19"
-    sim_end = "2024-11-11"
+if len(sys.argv) == 4:
+    clientId, ticker, hybrid_start = sys.argv[1], sys.argv[2], sys.argv[3]
+    liveMode = True
+    print(f"🟢 Running in Real-Time Mode for {ticker} with Client ID: {clientId}")
 
-    print(f"🟢 Running in Real-Time Simulation Mode for {ticker}")
-
-    pattern_data = {
-        "dailyData": [],
-        "patternPoints": [
-            {"time": "0000-00-00"},  # 0
-            {"time": hybrid_start[:10]},  # 1
-            {"time": sim_start[:10]},     # 2
-            {"time": sim_end[:10]},       # 3
-        ],
-        "liveMode": liveMode,
-        "ticker": ticker
-    }
-
-    # Launch the live monitor with pattern_data already defined
-    monitor_stock_live(pattern_data, ticker)
+elif len(sys.argv) == 5:
+    ticker, hybrid_start, sim_start, sim_end = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+    liveMode = False
+    clientId = None  # No need for client ID in simulation
+    print(f"🔵 Running in Simulation Mode for {ticker} from {sim_start} to {sim_end}")
 
 else:
-    print("❌ Invalid number of arguments. Use either:\n"
-          "Real-Time Mode → python ai_bot.py <TICKER> <HYBRID_START>")
+    print("❌ Invalid number of arguments. Use:\n"
+          "   Real-Time Mode → python ai_bot.py <CLIENT_ID> <TICKER> <HYBRID_START>\n"
+          "   Simulation Mode → python ai_bot.py <TICKER> <HYBRID_START> <SIM_START> <SIM_END>")
     exit()
+
+pattern_data = {
+    "dailyData": [],
+    "patternPoints": [
+        {"time": "0000-00-00"},
+        {"time": hybrid_start[:10]},
+        {"time": sim_start if not liveMode else "0000-00-00"},
+        {"time": sim_end if not liveMode else "0000-00-00"},
+    ],
+    "liveMode": liveMode,
+    "ticker": ticker,
+    "clientId": clientId,
+    "ib": None  # 👈 Pass the instance here
+}
+
+monitor_stock_live(pattern_data, ticker)

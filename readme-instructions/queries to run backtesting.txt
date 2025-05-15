@@ -1,8 +1,5 @@
-python ai_bot.py DASH 2025-01-16 2025-02-20 2024-12-17
-python ai_bot.py CART 2024-08-16 2024-11-12 2024-08-01
-python ai_bot.py BJ 2025-01-17 2025-02-19 2024-12-11
 
-python ai_bot.py CART 2024-08-07
-python ai_bot.py CART 2024-08-16 2024-08-27 2024-08-07
 
-python ai_bot.py TTWO 2025-05-01 2025-05-02 2025-04-25
+python ai_bot.py CART 2024-08-07 2024-08-19 2024-11-11
+
+python ai_bot.py 3 TTWO 2025-05-01

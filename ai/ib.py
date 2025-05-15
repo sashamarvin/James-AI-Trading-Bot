@@ -125,7 +125,7 @@ def get_next_trading_day(current_date):
 
 
 # Initialize the IB connection
-def get_GW_realtime_data(ticker, monitor_callback):
+def get_GW_realtime_data(ib, ticker, monitor_callback):
     """
     Connects to the IB Gateway and streams real-time price data to the monitor_stock function.
 
@@ -188,7 +188,7 @@ def get_GW_realtime_data(ticker, monitor_callback):
         ib.disconnect() # type: ignore
 
 
-def fetch_daily_ohlcv_100days(ticker, end_date, save_path):
+def fetch_daily_ohlcv_100days(ib, ticker, end_date, save_path):
     ## ib = IB() # type: ignore
     ## ib.connect('127.0.0.1', 4002, clientId=1)
 
@@ -205,7 +205,6 @@ def fetch_daily_ohlcv_100days(ticker, end_date, save_path):
         formatDate=1
     )
 
-    ib.disconnect() # type: ignore
     df = util.df(bars) # type: ignore
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
