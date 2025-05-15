@@ -3,7 +3,6 @@ venv/
 __pycache__/
 
 # Data folder to avoid caching in GitHub
-data/
 
 # OS files
 .DS_Store

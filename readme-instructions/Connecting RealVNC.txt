@@ -1,0 +1,81 @@
+##############################
+# James AI Local & VPS Guide #
+##############################
+
+===== LOCAL DEVELOPMENT =====
+1. Navigate to the project directory:
+    cd ~/AI-Trading-Bot
+
+2. Activate the virtual environment:
+    source venv/bin/activate
+
+3. Run the AI Bot backtesting:
+    python ai_bot.py <ticker> <start_date> <end_date> <reference_date>
+
+Example:
+    python ai_bot.py DASH 2025-01-16 2025-02-20 2024-12-17
+
+4. If you want to fetch new historical data:
+    python ib.py <ticker> <start_date> <end_date>
+
+Example:
+    python ib.py BJ 2024-12-11 2025-02-19
+
+5. To deactivate the virtual environment:
+    deactivate
+
+
+===== VPS (DigitalOcean) ACCESS =====
+1. SSH into your DigitalOcean Droplet:
+    ssh root@<YOUR_IP_ADDRESS>
+
+2. Navigate to the AI bot folder:
+    cd ~/ai_trading_bot/ai
+
+3. Activate the virtual environment:
+    source venv/bin/activate
+
+4. To launch the VNC GUI:
+    sudo Xorg :0 &
+    export DISPLAY=:0
+    startlxde &
+    sudo x11vnc -display :0 -forever -loop -noxdamage -repeat -rfbauth /root/.vnc/passwd -rfbport 5900 -shared &
+
+5. Use VNC Viewer to connect to:
+    <YOUR_IP_ADDRESS>:5900
+
+6. Launch IB Gateway:
+    cd ~/Jts/ibgateway/1030
+    ./ibgateway &
+
+7. Log in using your credentials and set America/New_York in settings.
+
+8. In API Settings:
+    - Enable ActiveX and Socket Clients
+    - Port: 4002 (default)
+    - Trusted IP: 127.0.0.1
+
+9. Fetch data directly from IB:
+    python ib.py <ticker> <start_date> <end_date>
+
+
+===== TROUBLESHOOTING =====
+1. If Java crashes:
+    sudo killall -9 java
+
+2. If the GUI does not show up:
+    Check Xorg and lxsession:
+    ps aux | grep -E "Xorg|lxsession"
+
+3. Restart GUI:
+    sudo killall -9 Xorg lxsession x11vnc
+    sudo Xorg :0 &
+    export DISPLAY=:0
+    startlxde &
+    sudo x11vnc -display :0 -forever -loop -noxdamage -repeat -rfbauth /root/.vnc/passwd -rfbport 5900 -shared &
+
+4. Monitor CPU and RAM usage:
+    top
+
+5. Check if processes are running:
+    ps aux | grep -E "java|ibgateway|Xorg|lxsession|x11vnc"
