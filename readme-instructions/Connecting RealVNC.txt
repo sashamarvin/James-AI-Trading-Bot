@@ -10,10 +10,10 @@
     source venv/bin/activate
 
 3. Run the AI Bot backtesting:
-    python ai_bot.py <ticker> <start_date> <end_date> <reference_date>
+    python ai_bot.py <ticker> <hybrid_start_date> <last_closed_session> <end_date>
 
 Example:
-    python ai_bot.py DASH 2025-01-16 2025-02-20 2024-12-17
+    python ai_bot.py CART 2024-08-07 2024-08-19 2024-11-11
 
 4. If you want to fetch new historical data:
     python ib.py <ticker> <start_date> <end_date>
@@ -26,37 +26,70 @@ Example:
 
 
 ===== VPS (DigitalOcean) ACCESS =====
+
 1. SSH into your DigitalOcean Droplet:
-    ssh root@<YOUR_IP_ADDRESS>
+    ssh root@159.203.83.123
 
-2. Navigate to the AI bot folder:
-    cd ~/ai_trading_bot/ai
+2. Navigate to the AI bot folder & Activate the virtual environment:
+	cd ~/ai_trading_bot/ai
+	source venv/bin/activate
 
-3. Activate the virtual environment:
-    source venv/bin/activate
-
-4. To launch the VNC GUI:
-    sudo Xorg :0 &
+3. To launch the VNC GUI (execute one at a time, wait for command line to reappear):
+	sudo Xorg :0 &
     export DISPLAY=:0
     startlxde &
     sudo x11vnc -display :0 -forever -loop -noxdamage -repeat -rfbauth /root/.vnc/passwd -rfbport 5900 -shared &
 
-5. Use VNC Viewer to connect to:
-    <YOUR_IP_ADDRESS>:5900
+4. Use VNC Viewer to connect to:
+    159.203.83.123:5900
 
-6. Launch IB Gateway:
+5. Launch IB Gateway:
     cd ~/Jts/ibgateway/1030
     ./ibgateway &
 
-7. Log in using your credentials and set America/New_York in settings.
+6. Log in using your credentials and set America/New_York in settings.
 
-8. In API Settings:
+7. In API Settings:
     - Enable ActiveX and Socket Clients
     - Port: 4002 (default)
     - Trusted IP: 127.0.0.1
 
-9. Fetch data directly from IB:
-    python ib.py <ticker> <start_date> <end_date>
+8. Start monitoring:
+    	Live: python ai_bot.py 3 TTWO 2025-05-01
+		Backtesting: python ai_bot.py CART 2024-08-07 2024-08-19 2024-11-11
+
+
+===== TMUX USAGE FOR MONITORING =====
+
+-- Create a new tmux session:
+    tmux new -s <session_name>
+
+Example:
+    tmux new -s TTWO_monitor
+
+-- Start monitoring inside the tmux session:
+    python ai_bot.py <client_id> <ticker> <hybrid_start_date>
+
+Example:
+    python ai_bot.py 3 TTWO 2025-05-01
+
+-- Detach from tmux session (keeps running):
+    Press Ctrl + B, then press D
+
+-- List all running tmux sessions:
+    tmux ls
+
+-- Reattach to an existing session:
+    tmux attach -t <session_name>
+
+Example:
+    tmux attach -t TTWO_monitor
+
+-- Kill a tmux session (if needed):
+    tmux kill-session -t <session_name>
+
+Example:
+    tmux kill-session -t TTWO_monitor
 
 
 ===== TROUBLESHOOTING =====
@@ -78,4 +111,31 @@ Example:
     top
 
 5. Check if processes are running:
-    ps aux | grep -E "java|ibgateway|Xorg|lxsession|x11vnc"
+    ps aux | grep -E "java|ibgateway|Xorg|lxsession|x11vnc|python ai_bot.py"
+
+6. Check if port 4002 is active:
+    sudo netstat -tuln | grep 4002
+
+
+===== MAINTENANCE =====
+1. To clear old sessions:
+    tmux kill-session -t <session_name>
+
+2. To gracefully shut down a running bot:
+    Press Ctrl + C inside the tmux session or:
+    tmux attach -t <session_name>
+    Then Ctrl + C to end it.
+
+3. To check Docker leftovers (if any):
+    docker ps -a
+    docker system prune
+
+4. To clean up Docker networks:
+    docker network prune
+
+
+===== NOTES =====
+- All tmux sessions will remain active even if you disconnect SSH.
+- If you close VNC Viewer, you can reconnect without losing any session.
+- VPS sessions are independent. You can safely log out and come back.
+- Always check `tmux ls` to see what is running before starting a new session.

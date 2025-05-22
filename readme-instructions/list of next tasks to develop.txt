@@ -1,58 +1,65 @@
-Current Status and Next Steps (as of 2025-05-14)
+LIST OF THINGS TO DO AI BOT
 
-⸻
+	1.	Verify compatibility of check_buy, check_sell, detect_trend_mode with real-time data
+	2.	Fetch last closed trading day based on market calendar
+	3.	Generate 6-month daily history for last closed day using IB.py
+	4.	Store daily history in CSV for reference during live monitoring
+	5.	Stream real-time ticks from IB Gateway with get_GW_realtime_data
+	6.	Continuously feed ticks into check_buy and check_sell
+	7.	Implement live snapshot mechanism to save state after each event
+	8.	Double-write strategy to avoid snapshot corruption
+	9.	Log each trade attempt and broker confirmation
+	10.	Retry logic for failed orders with 3 attempts then alert
+	11.	Real-time logs for confirmations and rejections
+	12.	Resume capability on restart using the latest snapshot
+	13.	Recalculate if data is missing or inconsistent
+	14.	Detect network or market halts and handle with reconnect or alert
+	15.	Local test with mocked live data for end-to-end simulation
+	16.	VPS test with IB Gateway to observe live market behavior
 
-1️⃣ What We Achieved Recently:
-	•	Successfully connected James AI Bot to GW in real-time simulation mode.
-	•	Integrated real-time tick data streaming through get_GW_realtime_data.
-	•	Completed refactoring of monitor_stock_live to handle:
-	•	Live session initialization.
-	•	Day rollover with NYSE calendar.
-	•	Live tick monitoring and intraday tracking.
-	•	Resolved issues with timezone alignment for NYSE trading hours.
-	•	Implemented smooth on_tick handling for price updates.
-	•	Achieved correct buy triggers during live feed.
+	1.	Verify compatibility of check_buy, check_sell, detect_trend_mode with real-time data
+we done this
 
-⸻
+	2.	Fetch last closed trading day based on market calendar
+we already have this function in IB.py
+	3.	Generate 6-month daily history for last closed day using IB.py
+already working
+	4.	Store daily history in CSV for reference during live monitoring
+already working
+	5.	Stream real-time ticks from IB Gateway with get_GW_realtime_data
+to do and for now we need to find a way to test and reuse what we have in the simulation, looking forward to anticipate exactly what will happen on real time trading days, for the current day and for the next trading session
+	6.	Continuously feed ticks into check_buy and check_sell
+we need to use what we have in simulation replicating all the real time events
+	7.	Implement live snapshot mechanism to save state after each event
+we can do this after all is flawless
+	8.	Double-write strategy to avoid snapshot corruption
+same
+	9.	Log each trade attempt and broker confirmation
+we can only assume on this and test when it happens for real when market is open, we have no data and no experience of this
+	10.	Retry logic for failed orders with 3 attempts then alert
+same
+	11.	Real-time logs for confirmations and rejections
+same
+	12.	Resume capability on restart using the latest snapshot
+next phase
+	13.	Recalculate if data is missing or inconsistent
+	14.	Detect network or market halts and handle with reconnect or alert
+	15.	Local test with mocked live data for end-to-end simulation
+	16.	VPS test with IB Gateway to observe live market behavior
 
-2️⃣ What We Are Working On:
+Revised List of To-Do Tasks:
+	1.	Stream real-time ticks from IB Gateway with get_GW_realtime_data.
+	2.	Anticipate and simulate behavior for current trading day and next trading session.
+	3.	Replicate all real-time events from simulation into live feed, integrating with check_buy and check_sell.
+	4.	Implement a testing mechanism to mock real-time data for local testing.
+	5.	Validate and adjust handling of real-time events to match simulation logic.
+	6.	Prepare live monitoring logic for seamless transition into real-time streaming.
+	7.	Perform a local test with the real-time logic using mock data.
+	8.	Deploy on VPS to observe live market behavior and iterate from there.
 
-We are in the process of integrating GW buy and sell orders directly with IB Gateway:
-	•	The place_order function is being developed inside ib.py to handle:
-	•	Market Orders
-	•	Limit Orders
-	•	Stop Orders
-	•	We are setting up the connection logic to:
-	•	Validate the contract.
-	•	Send the order to GW.
-	•	Monitor execution status and log it for synchronization with James.
+Next Steps:
+	1.	Begin with step 1: Stream real-time ticks and attempt to connect to the IB GW during non-market hours to check connectivity.
+	2.	Implement local mock logic to simulate ticks if the market is closed.
+	3.	Ensure we are feeding the ticks to check_buy and check_sell exactly as we do in the simulation.
 
-⸻
-
-3️⃣ Next Planned Steps:
-	1.	Integrate place_order with check_buy and check_sell:
-	•	Allow James to automatically send buy/sell orders to GW when conditions are met.
-	•	Add live logging for order confirmation and status tracking.
-	2.	Implement Stop Loss Logic:
-	•	Decide on whether to send a Stop Loss Order to GW directly or manage it on our side.
-	•	The idea is to create a safety net for disconnections or sudden market drops.
-	3.	Test Scenarios:
-	•	Real-time mock tests for buy/sell executions.
-	•	Disconnection handling (e.g., Error 1100 & 1102 observed during tests).
-	•	Synchronization and recovery tests.
-	4.	Enhance Logging & Alerts:
-	•	Add detailed logs for every order sent, status updates, and fulfillment confirmation.
-	•	Optional: Slack or email alerts for execution confirmations and disconnections.
-
-⸻
-
-4️⃣ Questions to Address When We Resume:
-	•	Should Stop Loss Orders be sent to GW for redundancy or handled entirely by James?
-	•	Do we want a timeout logic in case an order remains pending for too long?
-	•	Should partial fills trigger a follow-up or be handled differently in live mode?
-
-⸻
-
-When you come back, we can pick up exactly from here and proceed with the place_order logic integration and testing.
-
-Would you like me to start preparing the structured logic for place_order in ib.py to save time for when you are back?
+Do you want me to start with step 1 and we go from there?...

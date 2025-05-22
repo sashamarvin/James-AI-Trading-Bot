@@ -772,21 +772,18 @@ def check_buy_3(pattern_data, position_data, position_size, allow_pivot=True, fo
 
     return False
     
-cool_off_mode = None  # 🔥 Add this here
-last_prompt_day = None  # 🧊 Tracks last day prompt shown in Cool Off Mode
+
 
 position_sequence = [0.25, 0.5, 0.25]
 
 
 
-def check_buy(pattern_data, position_data, max_risk, current_day_index, full_position, tick_price, log_entry, daily_state):
+def check_buy(pattern_data, position_data, max_risk, current_day_index, full_position, tick_price, log_entry, daily_state, cool_off_mode, last_prompt_day):
     
-    global cool_off_mode, last_prompt_day
-
     # --- COOL OFF MODE CHECK ---
     if cool_off_mode and cool_off_mode["active"]:
         current_day = pattern_data["dailyData"][current_day_index]["time"]
-        global last_prompt_day
+        
         if last_prompt_day != current_day:
             user_input = input("🧊 Cool Off Mode active. Resume monitoring this stock? (Y/n): ").strip().lower()
             last_prompt_day = current_day
@@ -795,9 +792,9 @@ def check_buy(pattern_data, position_data, max_risk, current_day_index, full_pos
                 cool_off_mode = None
             else:
                 print("🛑 Staying in Cool Off Mode. Skipping buy for today.")
-                return False
+                return False, cool_off_mode, last_prompt_day
         else:
-            return False
+            return False, cool_off_mode, last_prompt_day
     # --- END -- COOL OFF MODE CHECK ---
 
     if not position_data["entries"]:
@@ -807,29 +804,33 @@ def check_buy(pattern_data, position_data, max_risk, current_day_index, full_pos
                              current_day_index, full_position, tick_price, log_entry)
 
         if result == "runCheckBuy2":
-            return check_buy_2(pattern_data, position_data, position_size, max_risk=0.07,
-                               require_accumulation=False, require_1r=False,
-                               current_day_index=current_day_index, full_position=full_position,
-                               tick_price=tick_price, log_entry=log_entry)
-        return result
+            result2 = check_buy_2(pattern_data, position_data, position_size, max_risk=0.07,
+                                  require_accumulation=False, require_1r=False,
+                                  current_day_index=current_day_index, full_position=full_position,
+                                  tick_price=tick_price, log_entry=log_entry)
+            return result2, cool_off_mode, last_prompt_day
+
+        return result, cool_off_mode, last_prompt_day
 
     elif len(position_data["entries"]) == 1:
         # 2nd Buy: Breakout Confirmation
         position_size = position_sequence[1]
-        return check_buy_2(pattern_data, position_data, position_size, max_risk=0.07,
-                           require_accumulation=False, require_1r=False,
-                           current_day_index=current_day_index, full_position=full_position,
-                           tick_price=tick_price, log_entry=log_entry)
+        result = check_buy_2(pattern_data, position_data, position_size, max_risk=0.07,
+                             require_accumulation=False, require_1r=False,
+                             current_day_index=current_day_index, full_position=full_position,
+                             tick_price=tick_price, log_entry=log_entry)
+        return result, cool_off_mode, last_prompt_day
 
     elif len(position_data["entries"]) == 2:
         # 3rd Buy: Add on strength
         position_size = position_sequence[2]
-        return check_buy_3(pattern_data, position_data, position_size,
-                           allow_pivot=True, follow_through=True,
-                           current_day_index=current_day_index, full_position=full_position,
-                           tick_price=tick_price, log_entry=log_entry, daily_state=daily_state)
+        result = check_buy_3(pattern_data, position_data, position_size,
+                             allow_pivot=True, follow_through=True,
+                             current_day_index=current_day_index, full_position=full_position,
+                             tick_price=tick_price, log_entry=log_entry, daily_state=daily_state)
+        return result, cool_off_mode, last_prompt_day
 
-    return False
+    return False, cool_off_mode, last_prompt_day
     
     
     
@@ -909,7 +910,7 @@ def check_intraday_exit_logic(tick, intraday_low, intraday_high, prev_day_high_l
     return 0.0, fibs  # Default hold
 
 
-def check_sell(pattern_data, position_data, current_day_index, full_position, position_history, tick, intraday_low, intraday_high, log_entry):
+def check_sell(pattern_data, position_data, current_day_index, full_position, position_history, tick, intraday_low, intraday_high, log_entry, cool_off_mode):
     
     """
     Daily sell logic (day-by-day version of sell_on_strength).
@@ -919,7 +920,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
     ib = pattern_data['ib']
 
     if len(daily_data) < 2 or current_day_index is None:
-        return False
+        return False, cool_off_mode
 
     today = daily_data[current_day_index]
     price = today["close"]
@@ -927,7 +928,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
     tick_price = tick["price"]
 
     if not stop_price:
-        return False
+        return False, cool_off_mode
 
     last_entry = position_data["entries"][-1]
     entry_price = last_entry["price"]
@@ -975,8 +976,8 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
             position_data["stop"] = None
             position_data["entries"].clear()
             position_data["total_shares"] = 0
-            handle_full_exit(today, position_data, position_history, current_day_index, daily_data)
-            return True
+            cool_off_mode = handle_full_exit(today, position_data, position_history, current_day_index, daily_data, cool_off_mode)
+            return True, cool_off_mode
 
     # --- Stall after Parabolic ---
     if current_day_index >= 2:
@@ -1010,8 +1011,8 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
                     position_data["stop"] = None
                     position_data["entries"].clear()
                     position_data["total_shares"] = 0
-                    handle_full_exit(today, position_data, position_history, current_day_index, daily_data)
-                    return True
+                    cool_off_mode = handle_full_exit(today, position_data, position_history, current_day_index, daily_data, cool_off_mode)
+                    return True, cool_off_mode
 
             elif action == 0.75 and total_size >= 0.75:
                 shares = min(round(position_data.get("total_shares", 0) * 0.75), position_data.get("total_shares", 0))
@@ -1027,7 +1028,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
                         logging.info(f"📝 Simulation Mode: Sell logged, but not executed for real")
                     
                     position_data["total_shares"] -= shares
-                    return True
+                    return True, cool_off_mode
 
             elif action == 0.5 and total_size >= 0.5:
                 shares = min(round(position_data.get("total_shares", 0) * 0.5), position_data.get("total_shares", 0))
@@ -1043,7 +1044,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
                         logging.info(f"📝 Simulation Mode: Sell logged, but not executed for real")
                     
                     position_data["total_shares"] -= shares
-                    return True
+                    return True, cool_off_mode
 
     # --- Sell 0.5 at 3R ---
     if r_multiple >= 3 and not position_data.get("sold_half") and total_size >= 0.5:
@@ -1061,7 +1062,7 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
                     
             position_data["sold_half"] = True
             position_data["total_shares"] -= shares
-            return True
+            return True, cool_off_mode
 
     # --- Sell 0.25 at +20% ---
     if gain_pct >= 0.20 and not position_data.get("sold_quarter") and total_size >= 0.25:
@@ -1079,22 +1080,23 @@ def check_sell(pattern_data, position_data, current_day_index, full_position, po
             
             position_data["sold_quarter"] = True
             position_data["total_shares"] -= shares
-            return True
+            return True, cool_off_mode
 
-    return False
+    return False, cool_off_mode
 
-def handle_full_exit(today, position_data, position_history, current_day_index, daily_data):
+def handle_full_exit(today, position_data, position_history, current_day_index, daily_data, cool_off_mode):
     print("🛑 No shares left. Stop deactivated.")
     position_data["stop"] = None
     position_data["entries"].clear()
     
-    global cool_off_mode
     cool_off_mode = {
         "active": True,
         "start_day": current_day_index,
         "min_days": 5,
     }
     print(f"🚫 Full position sold on {daily_data[current_day_index]['time']}. Entering Cool Off Mode for 5 days.")
+    
+    return cool_off_mode
     
 
 
@@ -1252,5 +1254,3 @@ def summarize_trading_results(position_history, full_position):
     print(f"💰 Total Profit: ${total_profit:,.2f}")
     
     
-
-

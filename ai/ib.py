@@ -8,7 +8,7 @@ import exchange_calendars as ecals
 import pytz
 
 calendar = ecals.get_calendar("XNYS")  # NYSE calendar
-
+ny_tz = pytz.timezone('America/New_York')
 
 
 def get_GW_realtime_data_TEST_market_closed(ticker, live_session_day, monitor_callback, live_simulated=True):
@@ -39,6 +39,29 @@ def get_GW_realtime_data_TEST_market_closed(ticker, live_session_day, monitor_ca
             "time": row['date'].strftime("%Y-%m-%d %H:%M:%S"),
             "price": round(row['close'], 2)
         }
+        """
+        # 🕒 Skip ticks before 14:30 if resuming 2024-08-26 after artificial interruption
+        if live_simulated and live_session_day == "2024-08-22":
+            skip_resume_point = datetime.fromisoformat("2024-08-22 14:30:00-04:00").timestamp()
+            current_tick_time = row['date'].timestamp()
+
+            if current_tick_time < skip_resume_point:
+                continue
+        """
+        # 🕒 Skip ticks before 10:00 if resuming 2024-08-26 after artificial interruption
+        if live_simulated and live_session_day == "2024-08-26":
+            skip_resume_point = datetime.fromisoformat("2024-08-26 10:00:00-04:00").timestamp()
+            current_tick_time = row['date'].timestamp()
+
+            if current_tick_time < skip_resume_point:
+                continue
+        """
+        # 🕒 Simulates if the restart is after market close    
+        if live_simulated and live_session_day == "2024-08-26":
+            print(f"🛑 Simulated start after market close on {live_session_day} at 16:30")
+            return
+        """
+        
         # 🔄 Callback with price data
         monitor_callback(price_data)
         
@@ -60,7 +83,6 @@ def get_last_closed_trading_day(simulate_date=None):
     Returns:
         tuple: (last closed trading day as "YYYY-MM-DD", market_is_open as bool, datetime object for now)
     """
-    ny_tz = pytz.timezone('America/New_York')
     
     if simulate_date:
         # 🌎 For simulation purposes, force the date and time
@@ -90,10 +112,29 @@ def get_last_closed_trading_day(simulate_date=None):
     return last_closed_day.strftime("%Y-%m-%d"), False, now
 
 
-from datetime import datetime, timedelta
-import exchange_calendars as ecals
 
-calendar = ecals.get_calendar("XNYS")  # NYSE calendar
+def get_market_open_close(trading_day):
+    """
+    Fetches the market open and close times for a given trading day.
+
+    Args:
+        trading_day (str): Date of the trading session in 'YYYY-MM-DD' format.
+
+    Returns:
+        tuple: (market_open, market_close) as timezone-aware datetime objects.
+    """
+    ny_tz = pytz.timezone('America/New_York')
+    date_obj = datetime.strptime(trading_day, "%Y-%m-%d")
+    
+    # Calendar session open and close
+    market_open = calendar.session_open(date_obj).astimezone(ny_tz)
+    market_close = calendar.session_close(date_obj).astimezone(ny_tz)
+
+    print(f"🕒 Market on {trading_day} → Open: {market_open}, Close: {market_close}")
+    
+    return market_open, market_close
+
+
 
 def get_next_trading_day(current_date):
     """
@@ -124,21 +165,27 @@ def get_next_trading_day(current_date):
     return next_open
 
 
+from datetime import datetime
+import pytz
+import sys
+
 # Initialize the IB connection
-def get_GW_realtime_data(ib, ticker, monitor_callback):
+def get_GW_realtime_data(ib, ticker, monitor_callback, market_open, market_close):
     """
     Connects to the IB Gateway and streams real-time price data to the monitor_stock function.
 
     Args:
         ticker (str): The stock ticker symbol (e.g., "AAPL").
         monitor_callback (func): The callback function to execute on each new tick.
+        market_open (datetime): The market opening time for the current session.
+        market_close (datetime): The market closing time for the current session.
     """
-    ## ib = IB() # type: ignore
-    ## ib.connect('127.0.0.1', 4002, clientId=4)
-
     # Define the contract for the stock
-    contract = Stock(ticker, 'SMART', 'USD') # type: ignore
-    ib.qualifyContracts(contract) # type: ignore
+    contract = Stock(ticker, 'SMART', 'USD')  # type: ignore
+    ib.qualifyContracts(contract)  # type: ignore
+
+    # Timezone aware
+    ny_tz = pytz.timezone('America/New_York')
 
     # Live ticker storage
     live_ticks = []
@@ -161,7 +208,7 @@ def get_GW_realtime_data(ib, ticker, monitor_callback):
         # ✅ Check if the Ticker object has a 'last' price update
         if hasattr(tick, 'last') and tick.last is not None:
             price_data = {
-                "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "time": datetime.now(ny_tz).strftime("%Y-%m-%d %H:%M:%S"),
                 "price": tick.last
             }
             live_ticks.append(price_data)
@@ -175,17 +222,27 @@ def get_GW_realtime_data(ib, ticker, monitor_callback):
         else:
             print(f"⚠️ No valid last price in tick: {tick}")
 
+        # ➡️ If market is closed, stop streaming
+        now = datetime.now(ny_tz)
+        if now >= market_close:
+            print(f"\n⏹️ Market closed at {market_close.strftime('%Y-%m-%d %H:%M:%S')}. Ending live feed.")
+            
+            # 🛑 Cancel the feed gracefully
+            ib.cancelMktData(contract)
+            ib.disconnect()
+            raise StopIteration
+
     # Subscribe to live market data
-    ib.reqMktData(contract, "", False, False) # type: ignore
-    ib.pendingTickersEvent += on_tick # type: ignore
+    ib.reqMktData(contract, "", False, False)  # type: ignore
+    ib.pendingTickersEvent += on_tick  # type: ignore
 
     print(f"🚀 Real-time feed started for {ticker}")
     
     try:
-        ib.run() # type: ignore
+        ib.run()  # type: ignore
     except KeyboardInterrupt:
         print("\n🔌 Real-time feed stopped.")
-        ib.disconnect() # type: ignore
+        ib.disconnect()  # type: ignore
 
 
 def fetch_daily_ohlcv_100days(ib, ticker, end_date, save_path):
