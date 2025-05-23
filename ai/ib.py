@@ -47,7 +47,7 @@ def get_GW_realtime_data_TEST_market_closed(ticker, live_session_day, monitor_ca
 
             if current_tick_time < skip_resume_point:
                 continue
-        """
+        
         # 🕒 Skip ticks before 10:00 if resuming 2024-08-26 after artificial interruption
         if live_simulated and live_session_day == "2024-08-26":
             skip_resume_point = datetime.fromisoformat("2024-08-26 10:00:00-04:00").timestamp()
@@ -55,7 +55,7 @@ def get_GW_realtime_data_TEST_market_closed(ticker, live_session_day, monitor_ca
 
             if current_tick_time < skip_resume_point:
                 continue
-        """
+        
         # 🕒 Simulates if the restart is after market close    
         if live_simulated and live_session_day == "2024-08-26":
             print(f"🛑 Simulated start after market close on {live_session_day} at 16:30")
@@ -169,81 +169,83 @@ from datetime import datetime
 import pytz
 import sys
 
-# Initialize the IB connection
+# 🛡️ Resilient GW Streamer with Reconnection Support
 def get_GW_realtime_data(ib, ticker, monitor_callback, market_open, market_close):
-    """
-    Connects to the IB Gateway and streams real-time price data to the monitor_stock function.
 
-    Args:
-        ticker (str): The stock ticker symbol (e.g., "AAPL").
-        monitor_callback (func): The callback function to execute on each new tick.
-        market_open (datetime): The market opening time for the current session.
-        market_close (datetime): The market closing time for the current session.
-    """
-    # Define the contract for the stock
-    contract = Stock(ticker, 'SMART', 'USD')  # type: ignore
-    ib.qualifyContracts(contract)  # type: ignore
-
-    # Timezone aware
     ny_tz = pytz.timezone('America/New_York')
+    contract = Stock(ticker, 'SMART', 'USD')  # type: ignore
 
-    # Live ticker storage
-    live_ticks = []
+    # 🔁 Retry loop until Gateway is responsive
+    while True:
+        try:
+            ib.qualifyContracts(contract)
+            break
+        except Exception as e:
+            print(f"⚠️ IB Gateway unavailable ({e}). Retrying in 5s...")
+            time.sleep(5)
 
-    # Define the callback for live tick updates
     def on_tick(tick_set):
-        """
-        Callback for real-time tick updates from IB Gateway.
-
-        Args:
-            tick_set (set): A set containing a single Ticker object.
-        """
-        # ➡️ Unwrap the set safely, since it contains only one Ticker object
         try:
             tick = next(iter(tick_set))
         except StopIteration:
-            print("⚠️ Tick set was empty, skipping update.")
+            print("⚠️ Tick set empty.")
             return
 
-        # ✅ Check if the Ticker object has a 'last' price update
         if hasattr(tick, 'last') and tick.last is not None:
             price_data = {
                 "time": datetime.now(ny_tz).strftime("%Y-%m-%d %H:%M:%S"),
                 "price": tick.last
             }
-            live_ticks.append(price_data)
-
-            # 🔄 Update the console on the same line
-            sys.stdout.write(f"\r💡 Latest Tick | Time: {price_data['time']} | Price: ${price_data['price']:.2f}")
+            sys.stdout.write(f"\r💡 Tick | {price_data['time']} | ${price_data['price']:.2f}")
             sys.stdout.flush()
-
-            # ➡️ Send the tick to the monitor for buy/sell checks
             monitor_callback(price_data)
-        else:
-            print(f"⚠️ No valid last price in tick: {tick}")
 
-        # ➡️ If market is closed, stop streaming
+        # 🕒 End session if market closed
         now = datetime.now(ny_tz)
         if now >= market_close:
-            print(f"\n⏹️ Market closed at {market_close.strftime('%Y-%m-%d %H:%M:%S')}. Ending live feed.")
-            
-            # 🛑 Cancel the feed gracefully
+            print(f"\n⏹️ Market closed at {market_close.strftime('%H:%M')}. Ending stream.")
             ib.cancelMktData(contract)
             ib.disconnect()
             raise StopIteration
 
-    # Subscribe to live market data
-    ib.reqMktData(contract, "", False, False)  # type: ignore
-    ib.pendingTickersEvent += on_tick  # type: ignore
+    # 📡 Subscribe and stream
+    ib.reqMktData(contract, "", False, False)
+    ib.pendingTickersEvent += on_tick
 
-    print(f"🚀 Real-time feed started for {ticker}")
+    print(f"🚀 GW Live Stream started for {ticker} with auto-reconnect")
+
+    while True:
+        try:
+            ib.run()
+            break
+        except Exception as e:
+            print(f"\n❌ GW Error: {e} — attempting reconnect in 5s...")
+            ib.disconnect()
+            time.sleep(5)
+            try:
+                if not ib.isConnected():
+                    ib.connect('127.0.0.1', 4002, clientId=ib.clientId)
+                ib.reqMktData(contract, "", False, False)
+            except Exception as e2:
+                print(f"🔁 Reconnect failed: {e2}")
+
+
+
+def safe_fetch_daily_ohlcv(ib, ticker, live_session_day, save_path, max_retries=10, wait_seconds=5):
+    """
+    Attempts to fetch daily OHLCV data safely with retry logic.
+    Prevents crash if GW is restarting or momentarily unresponsive.
+    """
+    for attempt in range(max_retries):
+        try:
+            fetch_daily_ohlcv_100days(ib, ticker, live_session_day, save_path)
+            return  # ✅ Success, return immediately
+        except Exception as e:
+            print(f"⚠️ Attempt {attempt+1}/{max_retries} failed: {e}")
+            print(f"⏳ Waiting {wait_seconds}s before retrying...")
+            time.sleep(wait_seconds)
     
-    try:
-        ib.run()  # type: ignore
-    except KeyboardInterrupt:
-        print("\n🔌 Real-time feed stopped.")
-        ib.disconnect()  # type: ignore
-
+    print("❌ All retry attempts failed. Daily data could not be fetched.")
 
 def fetch_daily_ohlcv_100days(ib, ticker, end_date, save_path):
     ## ib = IB() # type: ignore

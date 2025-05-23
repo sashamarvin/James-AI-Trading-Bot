@@ -205,6 +205,7 @@ def monitor_stock_live(pattern_data, ticker):
     finalize_this_session = False
     cool_off_mode = None  # 🔥 Add this here
     last_prompt_day = None  # 🧊 Tracks last day prompt shown in Cool Off Mode
+    last_snapshot_time = time.time() # timer to save a snapshot every 60sec 1 min
     
     if liveMode:
         # ⏰ Set the live mode to start today (NYSE time) and roll forward 30 days for end date
@@ -227,10 +228,28 @@ def monitor_stock_live(pattern_data, ticker):
         # ✅ CONNECT TO IB GW HERE
         
         clientId = pattern_data["clientId"]
-        print(f"🔗 Connecting to IB Gateway for live data with Client ID = {clientId}")
-        ib = IB() # type: ignore
+        ib = IB()  # type: ignore
         pattern_data["ib"] = ib
-        ib.connect('127.0.0.1', 4002, clientId)
+
+        # ⛔ Suppress noisy logs during retry
+        log = logging.getLogger("ib_insync")
+        log.setLevel(logging.CRITICAL)
+
+        print(f"🔗 Attempting connection to IB Gateway on port 4002 with client ID {clientId}...", end="")
+
+        retry_count = 0
+        while True:
+            try:
+                ib.connect('127.0.0.1', 4002, clientId)
+                print(" ✅ Connected.")
+                break
+            except Exception:
+                print("." if retry_count else "⏳ Waiting", end="", flush=True)
+                retry_count += 1
+                time.sleep(5)
+
+        # ✅ Restore logging after connection
+        ## log.setLevel(logging.INFO)
         
     else: 
         # Get the start date directly from pattern_data
@@ -275,7 +294,8 @@ def monitor_stock_live(pattern_data, ticker):
         # 1️⃣ Fetch Daily Data
         if liveMode:
             print("🌐 Fetching daily data from IB Gateway...") 
-            fetch_daily_ohlcv_100days(ib, ticker, live_session_day, save_path=f"../data/{ticker}/{ticker}_{live_session_day}.csv")
+            safe_fetch_daily_ohlcv(ib, ticker, live_session_day, save_path=f"../data/{ticker}/{ticker}_{live_session_day}.csv")
+            #fetch_daily_ohlcv_100days(ib, ticker, live_session_day, save_path=f"../data/{ticker}/{ticker}_{live_session_day}.csv")
         daily_data = load_daily_history_for_day(ticker, last_closed_day)
         pattern_data["dailyData"] = daily_data
         pattern_data["patternPoints"][2]["time"] = last_closed_day
@@ -357,21 +377,23 @@ def monitor_stock_live(pattern_data, ticker):
             
             nonlocal cool_off_mode, last_prompt_day
             nonlocal intraday_low, intraday_high, current_day_index
-            
-            # ✅ Step 3a: Mark session as started on first tick
-            if not daily_state.get("session_started"):
-                print("🚀 First tick received. Marking session as in progress.")
-                daily_state["session_started"] = True  # Prevent running again
-
-                save_snapshot(
-                    ticker,
-                    pattern_data["patternPoints"][1]["time"],
-                    **build_snapshot(position_data, log_entry, daily_state, pattern_data, intraday_low, intraday_high, last_closed_day, live_session_day, True, position_history, cool_off_mode, last_prompt_day)
-                )
+            nonlocal last_snapshot_time
             
             tick_price = price_data["price"]
             tick_time = price_data["time"]
-        
+            
+            intraday_low = min(intraday_low, tick_price)
+            intraday_high = max(intraday_high, tick_price)
+            
+            log_entry["last_tick_price"] = round(tick_price, 2)
+            
+            # ✅ Step 3a: Mark session as started on first tick
+            if not daily_state.get("session_started") and not pd.isna(tick_price):
+                print("🚀 First tick received. Marking session as in progress.")
+                daily_state["session_started"] = True  # Prevent running again
+
+                save_snapshot(ticker, pattern_data["patternPoints"][1]["time"], **build_snapshot(position_data, log_entry, daily_state, intraday_low, intraday_high, True, position_history, cool_off_mode, last_prompt_day))
+            
 
             # 🧨 TEMPORARY INTERRUPTION INJECTION FOR TESTING
             if False and not liveMode:
@@ -390,10 +412,9 @@ def monitor_stock_live(pattern_data, ticker):
                     print(f"🔌 Simulated interruption triggered at {current_tick_time}")
                     raise KeyboardInterrupt("Artificial interruption for snapshot test.")
             
-            intraday_low = min(intraday_low, tick_price)
-            intraday_high = max(intraday_high, tick_price)
+            
 
-            log_entry["last_tick_price"] = round(tick_price, 2)
+            
 
             buy_result, cool_off_mode, last_prompt_day = check_buy(
                 pattern_data,
@@ -427,11 +448,21 @@ def monitor_stock_live(pattern_data, ticker):
             # If either one of them returned True, the snapshot is saved
             if buy_result or sell_result:
                 print(f"💾 Snapshot saved after {'BUY' if buy_result else 'SELL'} event.")
+                save_snapshot(ticker, pattern_data["patternPoints"][1]["time"],
+                            **build_snapshot(position_data, log_entry, daily_state, intraday_low, intraday_high, True,
+                                            position_history, cool_off_mode, last_prompt_day))
+                last_snapshot_time = time.time()  # ⏱️ Reset timer
+
+            elif time.time() - last_snapshot_time > 60:
+                ## print("💾 Snapshot saved (idle > 1 min)")
                 save_snapshot(
                     ticker,
                     pattern_data["patternPoints"][1]["time"],
-                    **build_snapshot(position_data, log_entry, daily_state, pattern_data, intraday_low, intraday_high, last_closed_day, live_session_day, True, position_history, cool_off_mode, last_prompt_day)
+                    **build_snapshot(position_data, log_entry, daily_state, intraday_low, intraday_high, True,
+                                    position_history, cool_off_mode, last_prompt_day),
+                    silent=True
                 )
+                last_snapshot_time = time.time()
                 
         # 🔄 Stream Ticks for the Day
         if liveMode:
@@ -450,11 +481,7 @@ def monitor_stock_live(pattern_data, ticker):
         daily_log = []
         
         # ✅ Step 3b: Mark session as closed
-        save_snapshot(
-            ticker,
-            pattern_data["patternPoints"][1]["time"],
-            **build_snapshot(position_data, log_entry, daily_state, pattern_data, intraday_low, intraday_high, last_closed_day, live_session_day, False, position_history, cool_off_mode, last_prompt_day)
-        )
+        save_snapshot(ticker, pattern_data["patternPoints"][1]["time"], **build_snapshot(position_data, log_entry, daily_state, intraday_low, intraday_high, True, position_history, cool_off_mode, last_prompt_day))
         
         ## save_trade_log(ticker, log_entry)
         

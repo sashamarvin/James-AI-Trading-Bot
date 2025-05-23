@@ -8,25 +8,19 @@ def build_snapshot(
     position_data,
     log_entry,
     daily_state,
-    pattern_data,
     intraday_low,
     intraday_high,
-    last_closed_day,
-    live_session_day,
     session_in_progress,
-    position_history,
-    cool_off_mode,
-    last_prompt_day
+    position_history=None,
+    cool_off_mode=None,
+    last_prompt_day=None
 ):
     return {
         "position_data": position_data,
         "log_entry": log_entry,
         "daily_state": daily_state,
-        "pattern_data": pattern_data,
         "intraday_low": intraday_low,
         "intraday_high": intraday_high,
-        "last_closed_day": last_closed_day,
-        "live_session_day": live_session_day,
         "session_in_progress": session_in_progress,
         "position_history": position_history,
         "cool_off_mode": cool_off_mode,
@@ -39,34 +33,29 @@ def save_snapshot(
     position_data,
     log_entry,
     daily_state,
-    pattern_data,
     intraday_low,
     intraday_high,
-    last_closed_day=None,
-    live_session_day=None,
     session_in_progress=False,
     position_history=None,
     cool_off_mode=None, 
-    last_prompt_day=None
+    last_prompt_day=None,
+    silent=False
 ):
-    """
-    Save the current session state to a JSON file for recovery purposes.
-    """
     snapshot_data = {
         "position_data": position_data,
         "log_entry": log_entry,
         "daily_state": daily_state,
-        "pattern_data": pattern_data,
-        "last_closed_day": last_closed_day,
-        "live_session_day": live_session_day,
         "intraday_low": intraday_low,
         "intraday_high": intraday_high,
-        "session_in_progress": session_in_progress,
-        "snapshot_date": live_session_day,  # For audit/logging purposes
-        "position_history": position_history,
-        "cool_off_mode": cool_off_mode,
-        "last_prompt_day": last_prompt_day,
+        "session_in_progress": session_in_progress
     }
+
+    if position_history is not None:
+        snapshot_data["position_history"] = position_history
+    if cool_off_mode is not None:
+        snapshot_data["cool_off_mode"] = cool_off_mode
+    if last_prompt_day is not None:
+        snapshot_data["last_prompt_day"] = last_prompt_day
 
     base_path = f"monitoring_sessions/{ticker}"
     os.makedirs(base_path, exist_ok=True)
@@ -75,8 +64,9 @@ def save_snapshot(
     with open(snapshot_file, 'w') as f:
         json.dump(snapshot_data, f, indent=4)
 
-    print(f"💾 Snapshot saved at {snapshot_file}")
-    
+    if not silent:
+        print(f"💾 Snapshot saved at {snapshot_file}")
+      
 
 from datetime import datetime
 from ib import get_next_trading_day  # Importing from ib.py

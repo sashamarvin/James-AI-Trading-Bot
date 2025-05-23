@@ -1,0 +1,30 @@
+{
+    "position_data": {
+        "entries": [],
+        "stop": null,
+        "total_size": 0.0,
+        "avg_entry": null
+    },
+    "log_entry": {
+        "date": "2025-05-21",
+        "trend": "strong",
+        "breakout_level": null,
+        "last_tick_price": 444.08,
+        "buy_events": [],
+        "sell_events": [],
+        "events": [],
+        "lambda_points": [
+            "   \ud83d\udd3b 2025-05-21 \u2192 432.06",
+            "\u2705 \ud83d\udd3a 2025-05-21 \u2192 450.67"
+        ],
+        "max_size_warning": false,
+        "lambda_logged": true
+    },
+    "daily_state": {
+        "session_started": true
+    },
+    "intraday_low": 443.78,
+    "intraday_high": 447.77,
+    "session_in_progress": true,
+    "position_history": []
+}

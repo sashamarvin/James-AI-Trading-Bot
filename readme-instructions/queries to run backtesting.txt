@@ -6,3 +6,7 @@ python ai_bot.py 3 TTWO 2025-05-01
 python ai_bot.py 5 BSX 2025-05-08
 
 python ai_bot.py 4 TJX 2025-04-15
+
+python ai_bot.py 1 CRWD 2025-05-05
+
+python ai_bot.py 3 TJX close

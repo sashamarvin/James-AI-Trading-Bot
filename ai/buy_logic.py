@@ -388,37 +388,10 @@ def append_sell(position_data, action, price, reason):
 ################################# NEW BUY FUNCTIONS ################################
 
 printParameters = False
+printPars2 = False
 
 def check_buy_1(pattern_data, position_data, position_size, max_risk, current_day_index, fullPosition, tick_price, log_entry):
     
-    if printParameters:
-        
-        print("\n📝 --- Parameters Passed to check_buy_1 ---")
-        
-        print(f"\n📌 Pattern Points:")
-        for idx, point in enumerate(pattern_data["patternPoints"]):
-            print(f"  {idx}: {point}")
-        
-        print("\n📌 Last 3 Entries of Daily Data:")
-        for row in pattern_data["dailyData"][-3:]:
-            print(f"  {row}")
-        
-        print(f"\n📌 Position Data: {position_data}")
-        print(f"📌 Position Size: {position_size}")
-        print(f"📌 Max Risk: {max_risk}")
-        print(f"📌 Current Day Index: {current_day_index}")
-        print(f"📌 Full Position: {fullPosition}")
-        print(f"📌 Tick Price: {tick_price}")
-        print(f"📌 Log Entry: {log_entry}")
-        
-        print("\n📝 --- End of Parameters ---\n")
-    
-    """
-    Executes the pilot 0.25 buy:
-    - Only if price pierces the slanted high trendline
-    - Stop placed at most recent low
-    - Risk must be below max_risk (default: 5%)
-    """
 
     # 1. Extract breakout price when price crosses trendline
     # 2. Find most recent low (support)
@@ -431,18 +404,28 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
     # 1. Detect recent peaks and troughs (for stop and breakout type)
     start_time = pattern_data["patternPoints"][1]["time"]
     end_time = pattern_data["patternPoints"][2]["time"]
-    ## end_time = daily_data[-1]["time"]  # Last available entry
     
     start_idx = next(i for i, d in enumerate(daily_data) if d["time"] == start_time)
-    
-    if printParameters:
-        print(f"🔍 Looking for end_time {end_time} in daily_data")
-        print(f"🔎 Available dates in daily_data: {[d['time'] for d in daily_data]}")
-    
-
     end_idx = next(i for i, d in enumerate(daily_data) if d["time"] == end_time)
 
     points = find_lambda_hybrid(daily_data, start_idx, end_idx)
+    
+    # 2ND STAGE VERIFICATION FOR POINTS if HIGH LOW not detected by HYBRID in LAST DAY
+    lambda_high = next(pt["value"] for pt in reversed(points) if pt["type"] == "high")
+    lambda_low = next(pt["value"] for pt in reversed(points) if pt["type"] == "low")
+    last_day = daily_data[-1]["time"]
+    last_high = daily_data[-1]["high"]
+    last_low = daily_data[-1]["low"]
+    if last_high > lambda_high:
+        points.append({"type": "high", "time": last_day, "value": last_high})
+    if last_low < lambda_low:
+        points.append({"type": "low", "time": last_day, "value": last_low})
+    # 2ND STAGE VERIFICATION END
+    
+    if printPars2:
+        print(f"🔹 Lambda Points:")
+        for pt in points:
+            print(f"   {pt}")
     
     if printParameters:
         print("\n🔎 --- DEBUG INFO ---")
@@ -467,6 +450,9 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
         print(f"⚠️ No swing low found. Using fallback stop at {stop_price} ({fallback_low['time']})")
     else:
         stop_price = recent_low["value"]
+        
+        if printPars2:
+            print(f"🔹 Stop Price Set: {stop_price}")
     
     if printParameters:    
         print(f"   • Stop Price: {stop_price}")
@@ -486,12 +472,12 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
             flat_base = True
             print("🟦 Flat base detected — skipping trendline logic.")
             
-    if printParameters:
+    if printParameters or printPars2:
         print(f"   • Swing Highs: {swing_highs}")
         print(f"   • Highest High: {highest if len(swing_highs) >= 2 else 'N/A'}")
         print(f"   • Lowest High: {lowest if len(swing_highs) >= 2 else 'N/A'}")
         print(f"   • Flat Base Detected: {flat_base}")
-        input("⏸ Press Enter to continue")
+        # input("⏸ Press Enter to continue")
 
     # 3. Either flat base logic or downtrend breakout logic
     if flat_base:
@@ -519,10 +505,6 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
         
         threshold = is_breakout_today(daily_data, breakout_points, current_day_index, tick_price)
         
-        if printParameters:
-            print(f"   • Breakout Threshold Detected: {threshold}")
-            print(f"   • Current Tick Price: {tick_price}")
-        
         if not threshold:
             # print("❌ No breakout detected — no pilot buy.")
             return False
@@ -533,7 +515,7 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
     max_risk_allowed = 0.07 if flat_base else max_risk
     risk = (threshold - stop_price) / threshold
     
-    if printParameters:
+    if printParameters or printPars2:
         print(f"   • Threshold: {threshold}")
         print(f"   • Stop Price: {stop_price}")
         print(f"   • Risk Calculated: {risk}")
@@ -549,7 +531,7 @@ def check_buy_1(pattern_data, position_data, position_size, max_risk, current_da
     
     pattern_data["last_breakout"] = threshold  # ✅ Store breakout level for Buy 2+ filtering  
     
-    if printParameters:
+    if printParameters or printPars2:
         print(f"   • Buy Price: {buy_price}")
         print(f"   • Breakout Day: {breakout_day}")
         print(f"   • Last Breakout Updated: {threshold}") 
@@ -598,17 +580,32 @@ def check_buy_2(pattern_data, position_data, position_size, max_risk, require_ac
     """
     daily_data = pattern_data["dailyData"]
     ib = pattern_data['ib']
-    pattern_points = pattern_data["patternPoints"]
-        
 
-    # 🗓️ Get pattern window range
-    start_time = pattern_points[1]["time"]
-    end_index = current_day_index - 1  # 🔒 Pattern logic must end before today
+    # 1. Detect recent peaks and troughs (for stop and breakout type)
+    start_time = pattern_data["patternPoints"][1]["time"]
+    end_time = pattern_data["patternPoints"][2]["time"]
+    
+    start_idx = next(i for i, d in enumerate(daily_data) if d["time"] == start_time)
+    end_idx = next(i for i, d in enumerate(daily_data) if d["time"] == end_time)
 
-    start_index = next(i for i, d in enumerate(daily_data) if d["time"] == start_time)
-
-    # 🧠 Extract highs/lows structure
-    points = find_lambda_hybrid(daily_data, start_index, end_index)
+    points = find_lambda_hybrid(daily_data, start_idx, end_idx)
+    
+    # 2ND STAGE VERIFICATION FOR POINTS if HIGH LOW not detected by HYBRID in LAST DAY
+    lambda_high = next(pt["value"] for pt in reversed(points) if pt["type"] == "high")
+    lambda_low = next(pt["value"] for pt in reversed(points) if pt["type"] == "low")
+    last_day = daily_data[-1]["time"]
+    last_high = daily_data[-1]["high"]
+    last_low = daily_data[-1]["low"]
+    if last_high > lambda_high:
+        points.append({"type": "high", "time": last_day, "value": last_high})
+    if last_low < lambda_low:
+        points.append({"type": "low", "time": last_day, "value": last_low})
+    # 2ND STAGE VERIFICATION END
+    
+    if printPars2:
+        print(f"🔹 CHECK 2 - Lambda Points:")
+        for pt in points:
+            print(f"   {pt}")
 
 
     # 📈 Recent high = breakout trigger
@@ -642,6 +639,12 @@ def check_buy_2(pattern_data, position_data, position_size, max_risk, require_ac
 
     # 📅 Today’s candle (live day)
     today = daily_data[current_day_index]
+    
+    if printPars2:
+        print(f"CHECK 2 - 📅 Today’s Tick Date: {today['time']}")
+        print(f"CHECK 2 -    ➤ Breakout Level: {breakout_level}")
+        print(f"CHECK 2 -    ➤ Tick Price: {tick_price}")
+        print(f"CHECK 2 -    ➤ Stop Price: {stop_price}")
 
     # print(f"🧪 {today['time']} breakout check:")
     # print(f"    ➤ Breakout level: {breakout_level} and Tick price:{tick_price}")
@@ -663,6 +666,10 @@ def check_buy_2(pattern_data, position_data, position_size, max_risk, require_ac
             return False
         
         buy_price = round(breakout_level + 0.01, 2)
+        
+        if printPars2:
+            print(f"CHECK 2 - 🔹 Buy Price: {buy_price}")
+            input("CHECK 2 - ⏸ Press Enter to continue")
         
         log_buy_event(position_size, buy_price, stop_price, risk, today["time"], position_data, full_position)
         

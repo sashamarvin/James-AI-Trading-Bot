@@ -1,0 +1,26 @@
+{
+    "position_data": {
+        "entries": [],
+        "stop": null,
+        "total_size": 0.0,
+        "avg_entry": null
+    },
+    "log_entry": {
+        "date": "2025-05-21",
+        "trend": "normal",
+        "breakout_level": null,
+        "last_tick_price": 224.98,
+        "buy_events": [],
+        "sell_events": [],
+        "events": [],
+        "lambda_points": [],
+        "max_size_warning": false
+    },
+    "daily_state": {
+        "session_started": true
+    },
+    "intraday_low": 224.64,
+    "intraday_high": 225.04,
+    "session_in_progress": true,
+    "position_history": []
+}

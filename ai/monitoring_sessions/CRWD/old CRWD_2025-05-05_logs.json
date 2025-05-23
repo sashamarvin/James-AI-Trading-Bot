@@ -1,0 +1,62 @@
+{
+    "position_data": {
+        "entries": [],
+        "stop": null,
+        "total_size": 0.0,
+        "avg_entry": null,
+        "total_shares": 0,
+        "sells": [
+            {
+                "price": 434.74,
+                "date": "2025-05-21",
+                "reason": "Stop hit at 436.68 \u2014 11 shares",
+                "size": 1.0
+            },
+            {
+                "price": 434.74,
+                "date": "2025-05-21",
+                "reason": "Stop hit",
+                "size": 1.0
+            }
+        ]
+    },
+    "log_entry": {
+        "date": "2025-05-21",
+        "trend": "strong",
+        "breakout_level": null,
+        "last_tick_price": 434.27,
+        "buy_events": [],
+        "sell_events": [],
+        "events": [],
+        "lambda_points": [
+            "\u2705 \ud83d\udd3a 2025-05-19 \u2192 445.5",
+            "   \ud83d\udd3b 2025-05-20 \u2192 436.69"
+        ],
+        "max_size_warning": false,
+        "lambda_logged": true
+    },
+    "daily_state": {
+        "session_started": true
+    },
+    "intraday_low": 434.27,
+    "intraday_high": 446.25,
+    "session_in_progress": true,
+    "position_history": [
+        [
+            {
+                "price": 445.51,
+                "size": 0.25,
+                "shares": 11,
+                "day": "2025-05-21",
+                "risk": 1.98,
+                "reason": "Breakout confirmation",
+                "exit": 434.74
+            }
+        ]
+    ],
+    "cool_off_mode": {
+        "active": true,
+        "start_day": 120,
+        "min_days": 5
+    }
+}
